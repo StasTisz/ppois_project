@@ -8,9 +8,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Enable testing
 enable_testing()
 
-# Include directories
-include_directories(include)
-
 # Find packages provided by vcpkg
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(GTest CONFIG REQUIRED)
@@ -27,21 +24,39 @@ endif()
 # tgbot-cpp
 find_package(tgbot-cpp CONFIG REQUIRED)
 
-# Core interfaces target
-add_library(movie_rec_interfaces INTERFACE)
-target_include_directories(movie_rec_interfaces INTERFACE
+# Core domain interface library
+add_library(movie_rec_core INTERFACE)
+
+target_include_directories(movie_rec_core INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
 
-# Main Executable
+target_link_libraries(movie_rec_core INTERFACE
+    ${SQLITE3_TARGET}
+    nlohmann_json::nlohmann_json
+    tgbot-cpp::tgbot-cpp
+)
+
+# Main Telegram Bot Executable
 add_executable(movie_rec_bot
     src/main.cpp
 )
 
 target_link_libraries(movie_rec_bot PRIVATE
-    movie_rec_interfaces
-    ${SQLITE3_TARGET}
-    nlohmann_json::nlohmann_json
-    tgbot-cpp::tgbot-cpp
+    movie_rec_core
 )
+
+# Unit Tests Executable
+add_executable(movie_rec_tests
+    tests/test_main.cpp
+)
+
+target_link_libraries(movie_rec_tests PRIVATE
+    movie_rec_core
+    GTest::gtest
+    GTest::gtest_main
+)
+
+include(GoogleTest)
+gtest_discover_tests(movie_rec_tests)

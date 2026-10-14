@@ -1,8 +1,8 @@
 #pragma once
 
 #include "core/Movie.h"
-#include <vector>
 #include <string>
+#include <vector>
 #include <cstdint>
 
 namespace recommendation {
