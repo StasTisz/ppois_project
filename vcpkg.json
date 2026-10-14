@@ -1,0 +1,10 @@
+{
+  "name": "movie-recommendation-bot",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "tgbot-cpp",
+    "sqlite3",
+    "nlohmann-json",
+    "gtest"
+  ]
+}

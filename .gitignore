@@ -1,0 +1,30 @@
+# Visual Studio and CMake
+.vs/
+out/
+build/
+CMakeSettings.json
+CMakeUserPresets.json
+*.user
+
+# vcpkg installed packages
+vcpkg_installed/
+
+# Build artifacts
+bin/
+lib/
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.lib
+*.a
+*.o
+
+# Runtime SQLite databases and logs
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Environment files
+.env
