@@ -3,6 +3,7 @@
 #include "core/User.h"
 #include "core/Rating.h"
 #include "bot/BotState.h"
+#include "bot/BotConfig.h"
 #include "repository/IMovieRepository.h"
 #include "repository/IUserRepository.h"
 #include "recommendation/IRecommendationStrategy.h"
@@ -41,4 +42,14 @@ TEST(CoreModelTest, RatingInstantiation) {
     rating.score = 9;
 
     EXPECT_EQ(rating.score, 9);
+}
+
+TEST(BotConfigTest, DefaultConfigInitialization) {
+    bot::BotConfig config;
+    EXPECT_FALSE(config.isValid());
+    EXPECT_EQ(config.longPollTimeoutSeconds, 10);
+    EXPECT_TRUE(config.debugLogging);
+
+    config.token = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11";
+    EXPECT_TRUE(config.isValid());
 }
