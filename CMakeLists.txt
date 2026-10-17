@@ -48,6 +48,8 @@ target_link_libraries(movie_rec_core INTERFACE
 add_library(movie_rec_bot_lib STATIC
     src/bot/BotEventRouter.cpp
     src/bot/TelegramBotApp.cpp
+    src/bot/states/DefaultState.cpp
+    src/bot/states/GenreSelectionState.cpp
 )
 
 target_link_libraries(movie_rec_bot_lib PUBLIC
