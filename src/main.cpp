@@ -2,25 +2,35 @@
 #include <string>
 #include <cstdlib>
 
-#include "core/Movie.h"
-#include "core/User.h"
-#include "core/Rating.h"
-#include "bot/BotState.h"
+#include "bot/TelegramBotApp.h"
 
 int main() {
     std::cout << "========================================\n";
     std::cout << " Movie Recommendation Telegram Bot (C++)\n";
-    std::cout << " Project Core Initialized (Milestone 0) \n";
+    std::cout << " Bot & Event Infrastructure (Task 2.1) \n";
     std::cout << "========================================\n\n";
 
-    const char* tokenEnv = std::getenv("TELEGRAM_BOT_TOKEN");
+    const char* tokenEnv = std::getenv("BOT_TOKEN");
     if (!tokenEnv || std::string(tokenEnv).empty()) {
-        std::cout << "[INFO] Variable TELEGRAM_BOT_TOKEN is not set yet.\n"
-                  << "       Developer 2 will connect tgbot-cpp polling loop.\n";
-    } else {
-        std::cout << "[OK] Found TELEGRAM_BOT_TOKEN in environment.\n";
+        tokenEnv = std::getenv("TELEGRAM_BOT_TOKEN");
     }
 
-    std::cout << "[INFO] Ready for Dev 1 (Database & Recommendations) and Dev 2 (Telegram Bot & FSM) modules.\n";
+    if (!tokenEnv || std::string(tokenEnv).empty()) {
+        std::cout << "[INFO] Environment variable BOT_TOKEN (or TELEGRAM_BOT_TOKEN) is not set.\n"
+                  << "       To run the bot in network long-polling mode, set your token:\n"
+                  << "       export BOT_TOKEN=\"<YOUR_TELEGRAM_BOT_TOKEN>\"\n"
+                  << "       Exiting gracefully (exit code 0).\n";
+        return 0;
+    }
+
+    std::cout << "[INFO] Initializing TelegramBotApp with provided token...\n";
+    try {
+        bot::TelegramBotApp app(tokenEnv);
+        app.run();
+    } catch (const std::exception& e) {
+        std::cerr << "[FATAL] Unhandled exception in TelegramBotApp: " << e.what() << "\n";
+        return 1;
+    }
+
     return 0;
 }

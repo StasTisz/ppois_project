@@ -22,7 +22,13 @@ else()
 endif()
 
 # tgbot-cpp
-find_package(tgbot-cpp CONFIG REQUIRED)
+find_package(TgBot CONFIG QUIET)
+if(TARGET TgBot::TgBot)
+    set(TGBOT_TARGET TgBot::TgBot)
+else()
+    find_package(tgbot-cpp CONFIG REQUIRED)
+    set(TGBOT_TARGET tgbot-cpp::tgbot-cpp)
+endif()
 
 # Core domain interface library
 add_library(movie_rec_core INTERFACE)
@@ -35,12 +41,13 @@ target_include_directories(movie_rec_core INTERFACE
 target_link_libraries(movie_rec_core INTERFACE
     ${SQLITE3_TARGET}
     nlohmann_json::nlohmann_json
-    tgbot-cpp::tgbot-cpp
+    ${TGBOT_TARGET}
 )
 
 # Bot implementation library
 add_library(movie_rec_bot_lib STATIC
     src/bot/BotEventRouter.cpp
+    src/bot/TelegramBotApp.cpp
 )
 
 target_link_libraries(movie_rec_bot_lib PUBLIC
