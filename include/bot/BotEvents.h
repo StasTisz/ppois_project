@@ -5,53 +5,53 @@
 
 /**
  * @file BotEvents.h
- * @brief Data Transfer Objects (DTO) modeling incoming Telegram events for the bot layer.
+ * @brief Объекты передачи данных (DTO) для входящих событий Telegram-бота.
  */
 
 namespace bot {
 
 /**
  * @struct IncomingMessage
- * @brief Immutable representation of an incoming text message from a Telegram user.
+ * @brief Представление входящего текстового сообщения от пользователя Telegram.
  *
- * Decouples domain routing and state machine handlers from library-specific message types
- * (such as `TgBot::Message::Ptr`), enabling deterministic unit testing with mock events.
+ * Изолирует логику маршрутизации и FSM от платформенно-зависимых структур библиотеки `tgbot-cpp`,
+ * обеспечивая возможность автономного модульного тестирования с мок-событиями.
  */
 struct IncomingMessage {
-    /// Unique identifier for the Telegram chat/dialog where the message originated.
+    /// Уникальный идентификатор чата/диалога в Telegram.
     int64_t chatId{0};
 
-    /// Unique Telegram identifier of the sending user.
+    /// Уникальный идентификатор пользователя Telegram, отправившего сообщение.
     int64_t userId{0};
 
-    /// Optional Telegram username of the sender (without leading '@'), empty if not set.
+    /// Юзернейм пользователя в Telegram (без символа '@'), пустая строка если не задан.
     std::string username;
 
-    /// UTF-8 encoded text payload of the user message.
+    /// Текстовое содержимое сообщения (в кодировке UTF-8).
     std::string text;
 };
 
 /**
  * @struct IncomingCallback
- * @brief Immutable representation of a callback query triggered by an inline keyboard button.
+ * @brief Представление callback-запроса, полученного при клике на inline-кнопку.
  *
- * Contains query identifier needed for network acknowledgement, context message metadata,
- * and button payload data for router and FSM state transition handling.
+ * Содержит идентификатор запроса для подтверждения в Telegram API, метаданные чата
+ * и полезную нагрузку (payload) кнопки для дальнейшей маршрутизации и смены состояний FSM.
  */
 struct IncomingCallback {
-    /// Unique query identifier assigned by Telegram to acknowledge the button click.
+    /// Уникальный идентификатор запроса, назначенный сервером Telegram для отправки ответа.
     std::string callbackId;
 
-    /// Chat identifier containing the message with the clicked inline keyboard.
+    /// Идентификатор чата, в котором находится сообщение с нажатой кнопкой.
     int64_t chatId{0};
 
-    /// Telegram user identifier of the person who pressed the button.
+    /// Идентификатор пользователя Telegram, нажавшего кнопку.
     int64_t userId{0};
 
-    /// Message identifier of the message containing the clicked inline button.
+    /// Идентификатор сообщения Telegram, к которому была прикреплена кнопка.
     int32_t messageId{0};
 
-    /// Data payload associated with the inline button (e.g., action code or parameter).
+    /// Полезные данные кнопки (payload), переданные при её создании (например, код действия).
     std::string data;
 };
 

@@ -8,58 +8,58 @@
 
 /**
  * @file test_bot_infra.cpp
- * @brief Unit tests verifying event routing, callback acknowledgement, and messaging abstraction.
+ * @brief Модульные тесты для проверки маршрутизации событий, подтверждения callback-запросов и слоя мессенджера.
  */
 
 namespace {
 
 /**
  * @class MockBotMessenger
- * @brief Test spy implementing `bot::IBotMessenger` to verify outbound messages in memory.
+ * @brief Тестовый шпион (mock spy), реализующий `bot::IBotMessenger` для проверки отправки сообщений в памяти.
  */
 class MockBotMessenger : public bot::IBotMessenger {
 public:
-    /// Record of a dispatched text message.
+    /// Структура записи отправленного текстового сообщения.
     struct SentMessage {
         int64_t chatId{0};
         std::string text;
     };
 
-    /// Record of an acknowledged callback query.
+    /// Структура записи подтвержденного callback-запроса.
     struct AnsweredCallback {
         std::string callbackId;
         std::string text;
     };
 
     /**
-     * @brief Records message sending invocation.
-     * @param chatId Destination chat.
-     * @param text Message body.
+     * @brief Фиксирует вызов отправки текстового сообщения.
+     * @param chatId Идентификатор чата получателя.
+     * @param text Текст сообщения.
      */
     void sendMessage(int64_t chatId, const std::string& text) override {
         sentMessages.push_back({chatId, text});
     }
 
     /**
-     * @brief Records callback query acknowledgement invocation.
-     * @param callbackId Target callback ID.
-     * @param text Notification text.
+     * @brief Фиксирует вызов подтверждения callback-запроса.
+     * @param callbackId Идентификатор callback-запроса.
+     * @param text Текст уведомления.
      */
     void answerCallbackQuery(const std::string& callbackId, const std::string& text = "") override {
         answeredCallbacks.push_back({callbackId, text});
     }
 
-    /// History of all messages sent through this mock instance.
+    /// Список всех сообщений, отправленных через данный mock-объект.
     std::vector<SentMessage> sentMessages;
 
-    /// History of all callback acknowledgements recorded by this mock instance.
+    /// Список всех подтверждений callback-запросов, зафиксированных данным mock-объектом.
     std::vector<AnsweredCallback> answeredCallbacks;
 };
 
 } // namespace
 
 /**
- * @test Verifies that the '/start' onboarding command outputs the welcome message to the sender.
+ * @test Проверяет, что команда онбординга '/start' отправляет приветственное сообщение в чат автора.
  */
 TEST(BotEventRouterTest, HandlesStartCommand) {
     auto mock = std::make_shared<MockBotMessenger>();
@@ -74,7 +74,7 @@ TEST(BotEventRouterTest, HandlesStartCommand) {
 }
 
 /**
- * @test Verifies that standard non-command text is passed correctly to registered message handlers.
+ * @test Проверяет, что обычное текстовое сообщение корректно передается в зарегистрированный обработчик.
  */
 TEST(BotEventRouterTest, HandlesPlainTextMessage) {
     auto mock = std::make_shared<MockBotMessenger>();
@@ -98,8 +98,8 @@ TEST(BotEventRouterTest, HandlesPlainTextMessage) {
 }
 
 /**
- * @test Verifies that callback queries always trigger Telegram UI acknowledgement
- * and route their data payload to registered callback handlers.
+ * @test Проверяет, что при получении callback-запроса всегда отправляется подтверждение в Telegram API
+ * и полезная нагрузка (payload) передается в зарегистрированный обработчик.
  */
 TEST(BotEventRouterTest, HandlesCallbackQueryAndAcknowledgesIt) {
     auto mock = std::make_shared<MockBotMessenger>();
@@ -116,11 +116,11 @@ TEST(BotEventRouterTest, HandlesCallbackQueryAndAcknowledgesIt) {
     bot::IncomingCallback cb{"cb_1", 123, 456, 10, "genre:sci-fi"};
     router.onCallbackQuery(cb);
 
-    // Verify acknowledgement is sent to remove loading spinner in Telegram
+    // Проверка снятия индикатора ожидания в клиенте Telegram
     ASSERT_EQ(mock->answeredCallbacks.size(), 1);
     EXPECT_EQ(mock->answeredCallbacks[0].callbackId, "cb_1");
 
-    // Verify payload reached custom handler
+    // Проверка передачи данных кнопки в обработчик
     EXPECT_TRUE(callbackHandlerCalled);
     EXPECT_EQ(capturedCallback.data, "genre:sci-fi");
     EXPECT_EQ(capturedCallback.chatId, 123);
@@ -128,7 +128,7 @@ TEST(BotEventRouterTest, HandlesCallbackQueryAndAcknowledgesIt) {
 }
 
 /**
- * @test Verifies that empty incoming messages are ignored and produce neither actions nor dispatches.
+ * @test Проверяет, что пустые входящие сообщения игнорируются и не вызывают отправки ответов.
  */
 TEST(BotEventRouterTest, IgnoresEmptyMessage) {
     auto mock = std::make_shared<MockBotMessenger>();

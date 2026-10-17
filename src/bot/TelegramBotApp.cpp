@@ -4,57 +4,57 @@
 
 /**
  * @file TelegramBotApp.cpp
- * @brief Implementation of TelegramBotApp runtime polling loop and TgBotMessenger adapter.
+ * @brief Реализация цикла long-polling приложения TelegramBotApp и адаптера TgBotMessenger.
  */
 
 namespace bot {
 
-// --- TgBotMessenger Implementation ---
+// --- Реализация TgBotMessenger ---
 
 /**
- * @brief Constructs the messenger adapter.
- * @param bot Reference to the parent `TgBot::Bot` instance.
+ * @brief Конструктор адаптера мессенджера.
+ * @param bot Ссылка на клиент `TgBot::Bot`.
  */
 TgBotMessenger::TgBotMessenger(TgBot::Bot& bot)
     : bot_(bot) {
 }
 
 /**
- * @brief Sends an outbound text message to the specified Telegram chat.
- * Catches Telegram API and standard runtime exceptions to prevent process termination.
- * @param chatId Destination chat identifier.
- * @param text Content string.
+ * @brief Отправка исходящего сообщения в указанный чат Telegram.
+ * Перехватывает исключения API и стандартные ошибки во избежание падения приложения.
+ * @param chatId Идентификатор целевого чата.
+ * @param text Текст сообщения.
  */
 void TgBotMessenger::sendMessage(int64_t chatId, const std::string& text) {
     try {
         bot_.getApi().sendMessage(chatId, text);
     } catch (const TgBot::TgException& e) {
-        std::cerr << "[TgBotMessenger] Telegram API error in sendMessage: " << e.what() << "\n";
+        std::cerr << "[TgBotMessenger] Ошибка Telegram API при sendMessage: " << e.what() << "\n";
     } catch (const std::exception& e) {
-        std::cerr << "[TgBotMessenger] Unexpected error in sendMessage: " << e.what() << "\n";
+        std::cerr << "[TgBotMessenger] Непредвиденная ошибка при sendMessage: " << e.what() << "\n";
     }
 }
 
 /**
- * @brief Sends callback query acknowledgement to Telegram servers.
- * @param callbackId Target callback query identifier.
- * @param text Optional text to display as notification.
+ * @brief Подтверждение входящего callback-запроса от кнопки в Telegram.
+ * @param callbackId Идентификатор подтверждаемого запроса.
+ * @param text Опциональный текст уведомления.
  */
 void TgBotMessenger::answerCallbackQuery(const std::string& callbackId, const std::string& text) {
     try {
         bot_.getApi().answerCallbackQuery(callbackId, text);
     } catch (const TgBot::TgException& e) {
-        std::cerr << "[TgBotMessenger] Telegram API error in answerCallbackQuery: " << e.what() << "\n";
+        std::cerr << "[TgBotMessenger] Ошибка Telegram API при answerCallbackQuery: " << e.what() << "\n";
     } catch (const std::exception& e) {
-        std::cerr << "[TgBotMessenger] Unexpected error in answerCallbackQuery: " << e.what() << "\n";
+        std::cerr << "[TgBotMessenger] Непредвиденная ошибка при answerCallbackQuery: " << e.what() << "\n";
     }
 }
 
-// --- TelegramBotApp Implementation ---
+// --- Реализация TelegramBotApp ---
 
 /**
- * @brief Constructs the bot application, wiring up the messenger adapter and router.
- * @param token Authentication token string.
+ * @brief Конструктор хоста бота, создающий адаптер и подключающий маршрутизатор.
+ * @param token Токен Telegram-бота.
  */
 TelegramBotApp::TelegramBotApp(const std::string& token)
     : bot_(token),
@@ -64,14 +64,14 @@ TelegramBotApp::TelegramBotApp(const std::string& token)
 }
 
 /**
- * @brief Destructor stopping background activities.
+ * @brief Деструктор хоста приложения.
  */
 TelegramBotApp::~TelegramBotApp() {
     stop();
 }
 
 /**
- * @brief Registers tgbot-cpp event listeners and adapts incoming library objects into DTOs.
+ * @brief Подписка на события библиотеки tgbot-cpp и конвертация их в структуры DTO.
  */
 void TelegramBotApp::setupCallbacks() {
     bot_.getEvents().onAnyMessage([this](const TgBot::Message::Ptr& message) {
@@ -115,8 +115,7 @@ void TelegramBotApp::setupCallbacks() {
 }
 
 /**
- * @brief Initiates long-polling loop against Telegram Bot API.
- * Cleans webhooks on entry and loops `TgBot::TgLongPoll::start()` with comprehensive error handling.
+ * @brief Запуск цикла опроса long-polling с обработкой сетевых сбоев.
  */
 void TelegramBotApp::run() {
     isRunning_ = true;
@@ -124,16 +123,16 @@ void TelegramBotApp::run() {
     try {
         bot_.getApi().deleteWebhook();
     } catch (const TgBot::TgException& e) {
-        std::cerr << "[TelegramBotApp] Notice: deleteWebhook call: " << e.what() << "\n";
+        std::cerr << "[TelegramBotApp] Уведомление: вызов deleteWebhook: " << e.what() << "\n";
     } catch (const std::exception& e) {
-        std::cerr << "[TelegramBotApp] Error during deleteWebhook: " << e.what() << "\n";
+        std::cerr << "[TelegramBotApp] Ошибка при вызове deleteWebhook: " << e.what() << "\n";
     }
 
     try {
-        std::cout << "[TelegramBotApp] Starting long-polling as @"
+        std::cout << "[TelegramBotApp] Запуск long-polling для бота @"
                   << bot_.getApi().getMe()->username << "...\n";
     } catch (const std::exception& e) {
-        std::cerr << "[TelegramBotApp] Warning: could not retrieve bot info: " << e.what() << "\n";
+        std::cerr << "[TelegramBotApp] Предупреждение: не удалось получить имя бота: " << e.what() << "\n";
     }
 
     TgBot::TgLongPoll longPoll(bot_);
@@ -141,33 +140,33 @@ void TelegramBotApp::run() {
         try {
             longPoll.start();
         } catch (const TgBot::TgException& e) {
-            std::cerr << "[TelegramBotApp] Telegram API exception: " << e.what() << "\n";
+            std::cerr << "[TelegramBotApp] Ошибка Telegram API в цикле опроса: " << e.what() << "\n";
         } catch (const std::exception& e) {
-            std::cerr << "[TelegramBotApp] Standard exception: " << e.what() << "\n";
+            std::cerr << "[TelegramBotApp] Стандартное исключение в цикле опроса: " << e.what() << "\n";
         }
     }
 
-    std::cout << "[TelegramBotApp] Long-polling stopped.\n";
+    std::cout << "[TelegramBotApp] Цикл long-polling завершен.\n";
 }
 
 /**
- * @brief Signals termination of the active polling loop.
+ * @brief Остановка цикла long-polling.
  */
 void TelegramBotApp::stop() {
     isRunning_ = false;
 }
 
 /**
- * @brief Provides access to the event router.
- * @return Shared pointer to `BotEventRouter`.
+ * @brief Возвращает указатель на маршрутизатор событий.
+ * @return Умный указатель на `BotEventRouter`.
  */
 std::shared_ptr<BotEventRouter> TelegramBotApp::getRouter() const {
     return router_;
 }
 
 /**
- * @brief Provides access to the inner `TgBot::Bot` instance.
- * @return Reference to `TgBot::Bot`.
+ * @brief Предоставляет доступ к внутреннему объекту `TgBot::Bot`.
+ * @return Ссылка на `TgBot::Bot`.
  */
 TgBot::Bot& TelegramBotApp::getBot() {
     return bot_;

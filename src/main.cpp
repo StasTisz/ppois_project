@@ -6,16 +6,16 @@
 
 /**
  * @file main.cpp
- * @brief Application entry point for the Movie Recommendation Telegram Bot.
+ * @brief Точка входа в приложение Telegram-бота рекомендаций фильмов.
  *
- * Checks environment credentials (`BOT_TOKEN` or `TELEGRAM_BOT_TOKEN`),
- * instantiates the Telegram bot application host, and initiates the polling loop.
- * If credentials are missing, exits gracefully with informational instructions.
+ * Считывает переменные окружения (`BOT_TOKEN` или `TELEGRAM_BOT_TOKEN`),
+ * инициализирует приложение Telegram-бота и запускает цикл опроса long-polling.
+ * При отсутствии токена выводит справочную информацию и корректно завершается.
  */
 
 /**
- * @brief Main execution function.
- * @return 0 on normal startup and execution or graceful absence of token; 1 on fatal error.
+ * @brief Главная функция программы.
+ * @return 0 при успешном запуске и выполнении либо штатном выходе при отсутствии токена; 1 при фатальной ошибке.
  */
 int main() {
     std::cout << "========================================\n";
@@ -29,19 +29,19 @@ int main() {
     }
 
     if (!tokenEnv || std::string(tokenEnv).empty()) {
-        std::cout << "[INFO] Environment variable BOT_TOKEN (or TELEGRAM_BOT_TOKEN) is not set.\n"
-                  << "       To run the bot in network long-polling mode, set your token:\n"
-                  << "       export BOT_TOKEN=\"<YOUR_TELEGRAM_BOT_TOKEN>\"\n"
-                  << "       Exiting gracefully (exit code 0).\n";
+        std::cout << "[INFO] Переменная окружения BOT_TOKEN (или TELEGRAM_BOT_TOKEN) не задана.\n"
+                  << "       Для сетевого запуска бота укажите токен:\n"
+                  << "       export BOT_TOKEN=\"<ВАШ_ТОКЕН_БОТА>\"\n"
+                  << "       Штатное завершение программы (код возврата 0).\n";
         return 0;
     }
 
-    std::cout << "[INFO] Initializing TelegramBotApp with provided token...\n";
+    std::cout << "[INFO] Инициализация TelegramBotApp с указанным токеном...\n";
     try {
         bot::TelegramBotApp app(tokenEnv);
         app.run();
     } catch (const std::exception& e) {
-        std::cerr << "[FATAL] Unhandled exception in TelegramBotApp: " << e.what() << "\n";
+        std::cerr << "[FATAL] Необработанное исключение в TelegramBotApp: " << e.what() << "\n";
         return 1;
     }
 

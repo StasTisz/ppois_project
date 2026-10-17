@@ -5,23 +5,23 @@
 
 /**
  * @file BotEventRouter.cpp
- * @brief Implementation of the BotEventRouter message and callback query routing logic.
+ * @brief Реализация логики маршрутизации сообщений и callback-запросов класса BotEventRouter.
  */
 
 namespace bot {
 
 /**
- * @brief Constructor storing the messenger client instance.
- * @param messenger Shared pointer to an active `IBotMessenger` implementation.
+ * @brief Конструктор маршрутизатора событий.
+ * @param messenger Умный указатель на используемый `IBotMessenger`.
  */
 BotEventRouter::BotEventRouter(std::shared_ptr<IBotMessenger> messenger)
     : messenger_(std::move(messenger)) {
 }
 
 /**
- * @brief Handles text messages by checking for onboarding commands (/start),
- * falling back to custom consumers or default acknowledgment.
- * @param msg Incoming message DTO.
+ * @brief Обработка входящего текстового сообщения.
+ * Отправляет приветствие на `/start`, делегирует в кастомный хендлер либо возвращает эхо-ответ.
+ * @param msg DTO входящего сообщения.
  */
 void BotEventRouter::onTextMessage(const IncomingMessage& msg) {
     if (msg.text.empty()) {
@@ -29,69 +29,69 @@ void BotEventRouter::onTextMessage(const IncomingMessage& msg) {
     }
 
     if (!messenger_) {
-        std::cerr << "[BotEventRouter] Error: messenger is null\n";
+        std::cerr << "[BotEventRouter] Ошибка: messenger не инициализирован (null)\n";
         return;
     }
 
-    // Default command handling for onboarding (/start)
+    // Базовая обработка команды онбординга (/start)
     if (msg.text == "/start") {
         messenger_->sendMessage(msg.chatId, "Welcome to Movie Recommendation Bot!");
         return;
     }
 
-    // Forward to custom handler (e.g. FSM / Command Dispatcher in Milestone 2)
+    // Делегирование в зарегистрированный обработчик (FSM / Command Dispatcher)
     if (customMessageHandler_) {
         customMessageHandler_(msg);
         return;
     }
 
-    // Default fallback echo response for unhandled non-empty text
+    // Базовый ответ для необработанных текстовых сообщений
     messenger_->sendMessage(msg.chatId, "Received: " + msg.text);
 }
 
 /**
- * @brief Processes callback queries, immediately clearing the UI wait indicator
- * and forwarding payload data to registered listeners.
- * @param cb Incoming callback query DTO.
+ * @brief Обработка callback-запроса от inline-кнопок.
+ * Вызывает answerCallbackQuery и направляет данные в зарегистрированный обработчик.
+ * @param cb DTO входящего callback-запроса.
  */
 void BotEventRouter::onCallbackQuery(const IncomingCallback& cb) {
     if (!messenger_) {
-        std::cerr << "[BotEventRouter] Error: messenger is null\n";
+        std::cerr << "[BotEventRouter] Ошибка: messenger не инициализирован (null)\n";
         return;
     }
 
-    // Always acknowledge callback query to dismiss loader spinner in Telegram client
+    // Обязательное подтверждение запроса для прекращения анимации загрузки в Telegram
     messenger_->answerCallbackQuery(cb.callbackId);
 
-    // Forward to custom handler if registered
+    // Передача события в зарегистрированный обработчик кнопок
     if (customCallbackHandler_) {
         customCallbackHandler_(cb);
         return;
     }
 
-    // Default acknowledgement feedback if no custom handler is set
+    // Базовое уведомление, если кастомный обработчик не задан
     messenger_->sendMessage(cb.chatId, "Acknowledged callback: " + cb.data);
 }
 
 /**
- * @brief Injects custom text message routing callback.
- * @param handler Target callable.
+ * @brief Регистрация обработчика входящих текстовых сообщений.
+ * @param handler Целевая функция или лямбда.
  */
 void BotEventRouter::setMessageHandler(MessageHandler handler) {
     customMessageHandler_ = std::move(handler);
 }
 
 /**
- * @brief Injects custom callback query routing callback.
- * @param handler Target callable.
+ * @brief Регистрация обработчика входящих callback-запросов от кнопок.
+ * @param handler Целевая функция или лямбда.
  */
 void BotEventRouter::setCallbackHandler(CallbackHandler handler) {
     customCallbackHandler_ = std::move(handler);
 }
 
 /**
- * @brief Retrieves the active messenger reference.
- * @return Shared pointer to `IBotMessenger`.
+ * @brief Получение указателя на связанный мессенджер.
+ * @return Умный указатель на `IBotMessenger`.
  */
 std::shared_ptr<IBotMessenger> BotEventRouter::getMessenger() const {
     return messenger_;

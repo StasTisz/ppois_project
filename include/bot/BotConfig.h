@@ -5,32 +5,32 @@
 
 /**
  * @file BotConfig.h
- * @brief Configuration data structures and environment loaders for the Telegram bot.
+ * @brief Структуры конфигурации и загрузчики настроек Telegram-бота из переменных окружения.
  */
 
 namespace bot {
 
 /**
  * @struct BotConfig
- * @brief Encapsulates runtime configuration settings for the Telegram bot service (Task 2.1).
+ * @brief Инкапсулирует параметры времени выполнения для сервиса Telegram-бота (Задача 2.1).
  *
- * Provides parameters for network communication, polling timeouts, and logging levels,
- * along with helper methods to instantiate settings directly from the environment.
+ * Содержит параметры сетевого взаимодействия, таймауты опроса и уровень логирования,
+ * а также вспомогательные методы для создания конфигурации напрямую из переменных окружения.
  */
 struct BotConfig {
-    /// Telegram Bot API token obtained from @BotFather.
+    /// Токен Telegram Bot API, полученный у @BotFather.
     std::string token;
 
-    /// Timeout in seconds for long-polling requests to Telegram servers.
+    /// Таймаут long-polling запросов к серверам Telegram в секундах.
     int longPollTimeoutSeconds{10};
 
-    /// Flag enabling verbose operational and debugging output to standard streams.
+    /// Флаг включения подробного отладочного вывода в консоль.
     bool debugLogging{true};
 
     /**
-     * @brief Factory method that populates configuration from standard environment variables.
-     * Checks `BOT_TOKEN` first, then falls back to `TELEGRAM_BOT_TOKEN`.
-     * @return Initialized BotConfig instance.
+     * @brief Фабричный метод, считывающий конфигурацию из стандартных переменных окружения.
+     * Сначала проверяет `BOT_TOKEN`, затем `TELEGRAM_BOT_TOKEN`.
+     * @return Инициализированный объект BotConfig.
      */
     static BotConfig fromEnv() {
         BotConfig config;
@@ -45,8 +45,8 @@ struct BotConfig {
     }
 
     /**
-     * @brief Checks whether the configuration possesses all required credentials to run.
-     * @return True if a non-empty API token is provided, false otherwise.
+     * @brief Проверяет наличие всех обязательных параметров для запуска бота.
+     * @return true, если задан непустой токен API, иначе false.
      */
     [[nodiscard]] bool isValid() const {
         return !token.empty();

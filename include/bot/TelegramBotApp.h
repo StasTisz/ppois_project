@@ -10,37 +10,37 @@
 
 /**
  * @file TelegramBotApp.h
- * @brief Top-level application runner and adapter integrating the tgbot-cpp library with our event architecture.
+ * @brief Хост приложения Telegram-бота и адаптер библиотеки tgbot-cpp.
  */
 
 namespace bot {
 
 /**
  * @class TgBotMessenger
- * @brief Concrete adapter mapping `IBotMessenger` interface calls to `TgBot::Bot` API operations.
+ * @brief Адаптер, реализующий интерфейс `IBotMessenger` через вызовы Telegram Bot API (`tgbot-cpp`).
  *
- * Implements fault-tolerant message dispatching and callback query answering,
- * catching and logging library-specific `TgBot::TgException` and general runtime exceptions.
+ * Перехватывает и логирует библиотечные исключения `TgBot::TgException` и стандартные ошибки,
+ * предотвращая аварийное завершение процесса при сетевых неполадках Telegram.
  */
 class TgBotMessenger : public IBotMessenger {
 public:
     /**
-     * @brief Constructs the adapter wrapping a reference to an active `TgBot::Bot` instance.
-     * @param bot Reference to the underlying Telegram bot client.
+     * @brief Конструктор адаптера, принимающий ссылку на экземпляр `TgBot::Bot`.
+     * @param bot Ссылка на активный клиент Telegram-бота.
      */
     explicit TgBotMessenger(TgBot::Bot& bot);
 
     /**
-     * @brief Sends text message via `TgBot::Api::sendMessage`.
-     * @param chatId Telegram chat ID destination.
-     * @param text Message body string.
+     * @brief Отправляет текстовое сообщение через `TgBot::Api::sendMessage`.
+     * @param chatId Идентификатор целевого чата Telegram.
+     * @param text Текст сообщения.
      */
     void sendMessage(int64_t chatId, const std::string& text) override;
 
     /**
-     * @brief Acknowledges inline button callback query via `TgBot::Api::answerCallbackQuery`.
-     * @param callbackId Unique Telegram callback identifier.
-     * @param text Optional notification banner text.
+     * @brief Подтверждает callback-запрос через `TgBot::Api::answerCallbackQuery`.
+     * @param callbackId Идентификатор callback-запроса Telegram.
+     * @param text Опциональный текст уведомления.
      */
     void answerCallbackQuery(const std::string& callbackId, const std::string& text = "") override;
 
@@ -50,53 +50,53 @@ private:
 
 /**
  * @class TelegramBotApp
- * @brief Primary application host managing bot initialization, event wire-up, and long-polling lifecycle.
+ * @brief Основной класс приложения бота, управляющий long-polling циклом и событиями.
  *
- * Encapsulates the long-polling loop, automatically maps `TgBot::Message` and `TgBot::CallbackQuery`
- * instances into decoupled domain DTOs (`IncomingMessage`, `IncomingCallback`), and passes them
- * to `BotEventRouter`.
+ * Преобразует платформенные объекты сообщений (`TgBot::Message`) и callback-запросов
+ * (`TgBot::CallbackQuery`) в независимые структуры DTO (`IncomingMessage`, `IncomingCallback`)
+ * и направляет их в `BotEventRouter`.
  */
 class TelegramBotApp {
 public:
     /**
-     * @brief Initializes bot network client, messenger adapter, and event router.
-     * @param token Authentication token issued by @BotFather.
+     * @brief Конструктор приложения, инициализирующий сетевой клиент бота и маршрутизатор.
+     * @param token Токен авторизации бота от @BotFather.
      */
     explicit TelegramBotApp(const std::string& token);
 
     /**
-     * @brief Destructor ensuring polling loop termination and clean resource release.
+     * @brief Деструктор, останавливающий цикл опроса и освобождающий ресурсы.
      */
     ~TelegramBotApp();
 
     /**
-     * @brief Executes the long-polling loop.
+     * @brief Запускает цикл опроса серверов Telegram (long-polling).
      *
-     * Clears conflicting webhooks, logs bot identity, and enters an exception-resilient
-     * polling loop using `TgBot::TgLongPoll`. Recovers gracefully from transient network drops.
+     * Удаляет активные вебхуки, выводит юзернейм бота и циклически вызывает `TgBot::TgLongPoll::start()`
+     * с защитой от сетевых ошибок и сбоев соединения.
      */
     void run();
 
     /**
-     * @brief Signals the long-polling loop to terminate gracefully.
+     * @brief Завершает цикл long-polling.
      */
     void stop();
 
     /**
-     * @brief Accessor to the internal event router for registering FSM / Command handlers.
-     * @return Shared pointer to `BotEventRouter`.
+     * @brief Предоставляет доступ к маршрутизатору событий для регистрации обработчиков диалогов.
+     * @return Умный указатель на `BotEventRouter`.
      */
     [[nodiscard]] std::shared_ptr<BotEventRouter> getRouter() const;
 
     /**
-     * @brief Direct reference access to the underlying `TgBot::Bot` instance if low-level operations are needed.
-     * @return Reference to `TgBot::Bot`.
+     * @brief Предоставляет доступ к низкоуровневому объекту `TgBot::Bot`.
+     * @return Ссылка на экземпляр `TgBot::Bot`.
      */
     [[nodiscard]] TgBot::Bot& getBot();
 
 private:
     /**
-     * @brief Registers tgbot-cpp event listeners and links them to BotEventRouter handlers.
+     * @brief Подписывается на события tgbot-cpp и связывает их с маршрутизатором `BotEventRouter`.
      */
     void setupCallbacks();
 
