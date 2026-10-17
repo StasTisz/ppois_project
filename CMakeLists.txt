@@ -66,6 +66,7 @@ target_link_libraries(movie_rec_bot PRIVATE
 # Unit Tests Executable
 add_executable(movie_rec_tests
     tests/test_main.cpp
+    tests/test_bot_infra.cpp
 )
 
 target_link_libraries(movie_rec_tests PRIVATE
