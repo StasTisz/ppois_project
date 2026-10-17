@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bot/BotEventRouter.h"
+#include "bot/BotStateMachine.h"
 #include "bot/IBotMessenger.h"
 
 #include <tgbot/tgbot.h>
@@ -89,6 +90,12 @@ public:
     [[nodiscard]] std::shared_ptr<BotEventRouter> getRouter() const;
 
     /**
+     * @brief Предоставляет доступ к конечному автомату диалогов.
+     * @return Умный указатель на `BotStateMachine`.
+     */
+    [[nodiscard]] std::shared_ptr<BotStateMachine> getStateMachine() const;
+
+    /**
      * @brief Предоставляет доступ к низкоуровневому объекту `TgBot::Bot`.
      * @return Ссылка на экземпляр `TgBot::Bot`.
      */
@@ -103,6 +110,7 @@ private:
     TgBot::Bot bot_;
     std::shared_ptr<TgBotMessenger> messenger_;
     std::shared_ptr<BotEventRouter> router_;
+    std::shared_ptr<BotStateMachine> stateMachine_;
     std::atomic<bool> isRunning_{false};
 };
 

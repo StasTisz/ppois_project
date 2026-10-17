@@ -59,7 +59,9 @@ void TgBotMessenger::answerCallbackQuery(const std::string& callbackId, const st
 TelegramBotApp::TelegramBotApp(const std::string& token)
     : bot_(token),
       messenger_(std::make_shared<TgBotMessenger>(bot_)),
-      router_(std::make_shared<BotEventRouter>(messenger_)) {
+      router_(std::make_shared<BotEventRouter>(messenger_)),
+      stateMachine_(std::make_shared<BotStateMachine>(messenger_)) {
+    stateMachine_->attachToRouter(*router_);
     setupCallbacks();
 }
 
@@ -162,6 +164,14 @@ void TelegramBotApp::stop() {
  */
 std::shared_ptr<BotEventRouter> TelegramBotApp::getRouter() const {
     return router_;
+}
+
+/**
+ * @brief Предоставляет доступ к конечному автомату диалогов.
+ * @return Умный указатель на `BotStateMachine`.
+ */
+std::shared_ptr<BotStateMachine> TelegramBotApp::getStateMachine() const {
+    return stateMachine_;
 }
 
 /**

@@ -33,15 +33,15 @@ void BotEventRouter::onTextMessage(const IncomingMessage& msg) {
         return;
     }
 
-    // Базовая обработка команды онбординга (/start)
-    if (msg.text == "/start") {
-        messenger_->sendMessage(msg.chatId, "Welcome to Movie Recommendation Bot!");
+    // Делегирование в зарегистрированный обработчик (FSM / Command Dispatcher), включая /start
+    if (customMessageHandler_) {
+        customMessageHandler_(msg);
         return;
     }
 
-    // Делегирование в зарегистрированный обработчик (FSM / Command Dispatcher)
-    if (customMessageHandler_) {
-        customMessageHandler_(msg);
+    // Базовая обработка команды онбординга (/start), если кастомный обработчик не задан
+    if (msg.text == "/start") {
+        messenger_->sendMessage(msg.chatId, "Welcome to Movie Recommendation Bot!");
         return;
     }
 
