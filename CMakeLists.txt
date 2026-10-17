@@ -38,13 +38,22 @@ target_link_libraries(movie_rec_core INTERFACE
     tgbot-cpp::tgbot-cpp
 )
 
+# Bot implementation library
+add_library(movie_rec_bot_lib STATIC
+    src/bot/BotEventRouter.cpp
+)
+
+target_link_libraries(movie_rec_bot_lib PUBLIC
+    movie_rec_core
+)
+
 # Main Telegram Bot Executable
 add_executable(movie_rec_bot
     src/main.cpp
 )
 
 target_link_libraries(movie_rec_bot PRIVATE
-    movie_rec_core
+    movie_rec_bot_lib
 )
 
 # Unit Tests Executable
@@ -53,7 +62,7 @@ add_executable(movie_rec_tests
 )
 
 target_link_libraries(movie_rec_tests PRIVATE
-    movie_rec_core
+    movie_rec_bot_lib
     GTest::gtest
     GTest::gtest_main
 )
