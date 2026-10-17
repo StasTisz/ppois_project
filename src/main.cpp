@@ -4,6 +4,19 @@
 
 #include "bot/TelegramBotApp.h"
 
+/**
+ * @file main.cpp
+ * @brief Application entry point for the Movie Recommendation Telegram Bot.
+ *
+ * Checks environment credentials (`BOT_TOKEN` or `TELEGRAM_BOT_TOKEN`),
+ * instantiates the Telegram bot application host, and initiates the polling loop.
+ * If credentials are missing, exits gracefully with informational instructions.
+ */
+
+/**
+ * @brief Main execution function.
+ * @return 0 on normal startup and execution or graceful absence of token; 1 on fatal error.
+ */
 int main() {
     std::cout << "========================================\n";
     std::cout << " Movie Recommendation Telegram Bot (C++)\n";
