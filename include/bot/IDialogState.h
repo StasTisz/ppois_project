@@ -57,6 +57,16 @@ public:
      * @return Рекомендованный фильм либо std::nullopt, если фильмы закончились.
      */
     virtual std::optional<core::Movie> fetchNextMovie(int64_t userId) = 0;
+
+    /**
+     * @brief Находит фильм по его идентификатору.
+     * @param movieId Идентификатор фильма.
+     * @return Объект Movie либо std::nullopt, если фильм не найден.
+     */
+    [[nodiscard]] virtual std::optional<core::Movie> getMovieById(int64_t movieId) const {
+        (void)movieId;
+        return std::nullopt;
+    }
 };
 
 /**

@@ -1,5 +1,6 @@
 #include "bot/BotStateMachine.h"
 
+#include "bot/CommandDispatcher.h"
 #include "bot/states/BrowsingRecommendationsState.h"
 #include "bot/states/DefaultState.h"
 #include "bot/states/GenreSelectionState.h"
@@ -15,10 +16,13 @@
 namespace bot {
 
 BotStateMachine::BotStateMachine(std::shared_ptr<IBotMessenger> messenger)
-    : messenger_(std::move(messenger)) {
+    : messenger_(std::move(messenger)),
+      commandDispatcher_(std::make_unique<CommandDispatcher>(*this, messenger_)) {
     registerDefaultStates();
     initFallbackMovies();
 }
+
+BotStateMachine::~BotStateMachine() = default;
 
 void BotStateMachine::registerDefaultStates() {
     registerState(std::make_shared<DefaultState>());
@@ -140,6 +144,19 @@ std::optional<core::Movie> BotStateMachine::fetchNextMovie(int64_t userId) {
     return std::nullopt;
 }
 
+std::optional<core::Movie> BotStateMachine::getMovieById(int64_t movieId) const {
+    for (const auto& movie : fallbackMovies_) {
+        if (movie.id == movieId) {
+            return movie;
+        }
+    }
+    return std::nullopt;
+}
+
+CommandDispatcher& BotStateMachine::getCommandDispatcher() {
+    return *commandDispatcher_;
+}
+
 void BotStateMachine::setMovieProvider(MovieProvider provider) {
     movieProvider_ = std::move(provider);
 }
@@ -149,14 +166,12 @@ void BotStateMachine::processMessage(const IncomingMessage& msg) {
         return;
     }
 
-    auto& session = getSession(msg.userId, msg.chatId, msg.username);
-
-    // Команда /start глобально переводит пользователя в режим выбора жанров
-    if (msg.text == "/start") {
-        transitionTo(session.userId, BotState::SelectingGenres);
+    // Сначала проверяем глобальные команды диспетчера (/start, /recommend, /genres, /history, /help)
+    if (commandDispatcher_ && commandDispatcher_->dispatch(msg)) {
         return;
     }
 
+    auto& session = getSession(msg.userId, msg.chatId, msg.username);
     auto it = states_.find(session.state);
     if (it != states_.end() && it->second) {
         it->second->handleMessage(*this, session, msg);

@@ -3,6 +3,7 @@
 #include "bot/BotEvents.h"
 #include "bot/BotEventRouter.h"
 #include "bot/BotState.h"
+#include "bot/CommandDispatcher.h"
 #include "bot/IDialogState.h"
 #include "bot/UserSession.h"
 #include "core/Movie.h"
@@ -41,6 +42,11 @@ public:
     explicit BotStateMachine(std::shared_ptr<IBotMessenger> messenger);
 
     /**
+     * @brief Деструктор автомата состояний.
+     */
+    ~BotStateMachine() override;
+
+    /**
      * @brief Регистрирует состояние в карте состояний автомата.
      * @param state Умный указатель на реализацию IDialogState.
      */
@@ -74,6 +80,19 @@ public:
      * @return Объект Movie либо std::nullopt.
      */
     std::optional<core::Movie> fetchNextMovie(int64_t userId) override;
+
+    /**
+     * @brief Находит фильм по его идентификатору в каталоге фильмов.
+     * @param movieId Идентификатор фильма.
+     * @return Объект Movie либо std::nullopt.
+     */
+    [[nodiscard]] std::optional<core::Movie> getMovieById(int64_t movieId) const override;
+
+    /**
+     * @brief Предоставляет доступ к диспетчеру глобальных команд.
+     * @return Ссылка на объект CommandDispatcher.
+     */
+    [[nodiscard]] CommandDispatcher& getCommandDispatcher();
 
     /**
      * @brief Устанавливает пользовательский провайдер фильмов (для тестов и интеграции с сервисом рекомендаций).
@@ -112,6 +131,7 @@ private:
     void initFallbackMovies();
 
     std::shared_ptr<IBotMessenger> messenger_;
+    std::unique_ptr<CommandDispatcher> commandDispatcher_;
     std::unordered_map<BotState, std::shared_ptr<IDialogState>> states_;
     std::unordered_map<int64_t, UserSession> sessions_;
     std::vector<core::Movie> fallbackMovies_;

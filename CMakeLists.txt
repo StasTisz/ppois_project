@@ -50,6 +50,7 @@ add_library(movie_rec_bot_lib STATIC
     src/bot/TelegramBotApp.cpp
     src/bot/BotStateMachine.cpp
     src/bot/KeyboardFactory.cpp
+    src/bot/CommandDispatcher.cpp
     src/bot/states/DefaultState.cpp
     src/bot/states/GenreSelectionState.cpp
     src/bot/states/BrowsingRecommendationsState.cpp

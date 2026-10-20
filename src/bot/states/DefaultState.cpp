@@ -1,6 +1,8 @@
 #include "bot/states/DefaultState.h"
 #include "bot/KeyboardFactory.h"
 
+#include <sstream>
+
 /**
  * @file DefaultState.cpp
  * @brief Реализация логики главного меню бота в состоянии BotState::Idle.
@@ -85,6 +87,51 @@ void DefaultState::handleCallback(IDialogStateContext& ctx, UserSession& session
             ctx.transitionTo(session.userId, BotState::SelectingGenres);
         } else {
             ctx.transitionTo(session.userId, BotState::BrowsingRecommendations);
+        }
+        return;
+    }
+
+    if (cb.data == "menu:history") {
+        auto messenger = ctx.getMessenger();
+        if (!messenger) {
+            return;
+        }
+        if (session.movieRatings.empty()) {
+            messenger->sendMessageWithKeyboard(
+                session.chatId,
+                "Ваша история просмотров и оценок пока пуста.",
+                KeyboardFactory::createMainMenuKeyboard());
+        } else {
+            std::ostringstream oss;
+            oss << "📜 Ваша история оценок:\n";
+            for (const auto& [movieId, score] : session.movieRatings) {
+                auto movieOpt = ctx.getMovieById(movieId);
+                std::string title = movieOpt ? movieOpt->title : ("Фильм #" + std::to_string(movieId));
+                oss << "• " << title << " — " << score << "/10\n";
+            }
+            oss << "\nИспользуйте меню ниже для дальнейших действий:";
+            messenger->sendMessageWithKeyboard(
+                session.chatId,
+                oss.str(),
+                KeyboardFactory::createMainMenuKeyboard());
+        }
+        return;
+    }
+
+    if (cb.data == "menu:help") {
+        if (auto messenger = ctx.getMessenger()) {
+            std::string helpText =
+                "ℹ️ Справка по командам бота:\n"
+                "• /start — Запуск онбординга и выбор любимых жанров\n"
+                "• /recommend — Подбор персональных рекомендаций фильмов\n"
+                "• /genres — Настройка и смена списка любимых жанров\n"
+                "• /history — Просмотр истории оцененных фильмов\n"
+                "• /help — Справка по всем возможностям бота\n\n"
+                "Используйте кнопки меню ниже для быстрой навигации:";
+            messenger->sendMessageWithKeyboard(
+                session.chatId,
+                helpText,
+                KeyboardFactory::createMainMenuKeyboard());
         }
         return;
     }
