@@ -1,4 +1,5 @@
 #include "bot/states/DefaultState.h"
+#include "bot/KeyboardFactory.h"
 
 /**
  * @file DefaultState.cpp
@@ -17,11 +18,13 @@ void DefaultState::onEnter(IDialogStateContext& ctx, UserSession& session) {
         return;
     }
 
-    messenger->sendMessage(session.chatId,
+    messenger->sendMessageWithKeyboard(session.chatId,
         "Главное меню:\n"
         "• /recommend — Получить рекомендации фильмов\n"
         "• /genres — Настроить любимые жанры\n"
-        "• /help — Справка по командам");
+        "• /history — История оценок\n"
+        "• /help — Справка по командам",
+        KeyboardFactory::createMainMenuKeyboard());
 }
 
 void DefaultState::handleMessage(IDialogStateContext& ctx, UserSession& session, const IncomingMessage& msg) {
@@ -47,19 +50,23 @@ void DefaultState::handleMessage(IDialogStateContext& ctx, UserSession& session,
 
     if (msg.text == "/help") {
         if (messenger) {
-            messenger->sendMessage(session.chatId,
+            messenger->sendMessageWithKeyboard(session.chatId,
                 "Справка бота рекомендаций фильмов:\n"
                 "/recommend — Начать подбор рекомендаций на основе ваших предпочтений\n"
                 "/genres — Изменить список любимых жанров\n"
-                "/menu — Вернуться в главное меню");
+                "/history — История просмотренных и оцененных фильмов\n"
+                "/help — Справка по командам\n"
+                "/menu — Вернуться в главное меню",
+                KeyboardFactory::createMainMenuKeyboard());
         }
         return;
     }
 
     if (messenger) {
-        messenger->sendMessage(session.chatId,
+        messenger->sendMessageWithKeyboard(session.chatId,
             "Главное меню:\n"
-            "Используйте /recommend для подбора фильмов или /genres для выбора предпочтений.");
+            "Используйте кнопки меню ниже или команды /recommend и /genres.",
+            KeyboardFactory::createMainMenuKeyboard());
     }
 }
 
@@ -79,6 +86,7 @@ void DefaultState::handleCallback(IDialogStateContext& ctx, UserSession& session
         } else {
             ctx.transitionTo(session.userId, BotState::BrowsingRecommendations);
         }
+        return;
     }
 }
 

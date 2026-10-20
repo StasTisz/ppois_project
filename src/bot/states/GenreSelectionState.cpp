@@ -1,4 +1,5 @@
 #include "bot/states/GenreSelectionState.h"
+#include "bot/KeyboardFactory.h"
 
 #include <sstream>
 
@@ -105,8 +106,11 @@ void GenreSelectionState::sendStatusMessage(IDialogStateContext& ctx, const User
         oss << "\n";
     }
 
-    oss << "\nОтправьте название жанра текстом или нажмите /done для подтверждения (/cancel для отмены).";
-    messenger->sendMessage(session.chatId, oss.str());
+    oss << "\nОтправьте название жанра текстом или выберите кнопками ниже, затем нажмите /done или «✔️ Готово» (/cancel для отмены):";
+    messenger->sendMessageWithKeyboard(
+        session.chatId,
+        oss.str(),
+        KeyboardFactory::createGenreSelectionKeyboard(session.selectedGenres));
 }
 
 } // namespace bot

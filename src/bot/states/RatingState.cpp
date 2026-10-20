@@ -1,4 +1,5 @@
 #include "bot/states/RatingState.h"
+#include "bot/KeyboardFactory.h"
 
 #include <string>
 
@@ -20,9 +21,10 @@ void RatingState::onEnter(IDialogStateContext& ctx, UserSession& session) {
     }
 
     std::string movieTitle = session.currentMovie ? session.currentMovie->title : "текущий фильм";
-    messenger->sendMessage(session.chatId,
+    messenger->sendMessageWithKeyboard(session.chatId,
         "⭐ Оценка фильма «" + movieTitle + "»:\n"
-        "Отправьте оценку от 1 до 10 числом или нажмите /cancel для отмены.");
+        "Выберите оценку от 1 до 10 на клавиатуре ниже или отправьте число сообщением (либо /cancel):",
+        KeyboardFactory::createRatingKeyboard());
 }
 
 void RatingState::handleMessage(IDialogStateContext& ctx, UserSession& session, const IncomingMessage& msg) {

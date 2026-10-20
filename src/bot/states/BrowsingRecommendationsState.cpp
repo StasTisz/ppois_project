@@ -1,4 +1,5 @@
 #include "bot/states/BrowsingRecommendationsState.h"
+#include "bot/KeyboardFactory.h"
 
 #include <sstream>
 
@@ -88,9 +89,10 @@ void BrowsingRecommendationsState::showNextMovie(IDialogStateContext& ctx, UserS
 
     if (!nextMovie) {
         if (messenger) {
-            messenger->sendMessage(session.chatId,
+            messenger->sendMessageWithKeyboard(session.chatId,
                 "🎉 Вы просмотрели все доступные рекомендации по вашим жанрам!\n"
-                "Вы можете изменить жанры (/genres) или вернуться в главное меню (/menu).");
+                "Вы можете изменить жанры (/genres) или вернуться в главное меню (/menu).",
+                KeyboardFactory::createMainMenuKeyboard());
         }
         session.currentMovie = std::nullopt;
         ctx.transitionTo(session.userId, BotState::Idle);
@@ -121,8 +123,11 @@ void BrowsingRecommendationsState::showNextMovie(IDialogStateContext& ctx, UserS
             oss << "\n" << nextMovie->description << "\n";
         }
 
-        oss << "\nРеакции: 👍 Понравился (rec:like) | 👎 Не понравился (rec:dislike) | ⏭ Следующий (rec:next) | ⭐ Оценить (rec:rate)";
-        messenger->sendMessage(session.chatId, oss.str());
+        oss << "\nВыберите реакцию кнопками ниже:";
+        messenger->sendMessageWithKeyboard(
+            session.chatId,
+            oss.str(),
+            KeyboardFactory::createMovieReactionKeyboard());
     }
 }
 
