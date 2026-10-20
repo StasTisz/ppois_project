@@ -76,6 +76,7 @@ add_executable(movie_rec_tests
     tests/test_bot_infra.cpp
     tests/test_bot_fsm.cpp
     tests/test_keyboard_factory.cpp
+    tests/test_command_dispatcher.cpp
 )
 
 target_link_libraries(movie_rec_tests PRIVATE
