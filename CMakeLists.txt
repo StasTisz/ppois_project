@@ -24,15 +24,19 @@ endif()
 # tgbot-cpp
 find_package(tgbot-cpp CONFIG REQUIRED)
 
-# Core domain interface library
-add_library(movie_rec_core INTERFACE)
+# Core domain library
+add_library(movie_rec_core STATIC
+    src/repository/DatabaseManager.cpp
+    src/repository/SQLiteMovieRepository.cpp
+    src/repository/SQLiteUserRepository.cpp
+)
 
-target_include_directories(movie_rec_core INTERFACE
+target_include_directories(movie_rec_core PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(movie_rec_core INTERFACE
+target_link_libraries(movie_rec_core PUBLIC
     ${SQLITE3_TARGET}
     nlohmann_json::nlohmann_json
     tgbot-cpp::tgbot-cpp
@@ -50,6 +54,7 @@ target_link_libraries(movie_rec_bot PRIVATE
 # Unit Tests Executable
 add_executable(movie_rec_tests
     tests/test_main.cpp
+    tests/test_repository.cpp
 )
 
 target_link_libraries(movie_rec_tests PRIVATE
