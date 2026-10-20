@@ -1,5 +1,7 @@
 #pragma once
 
+#include "bot/InlineKeyboard.h"
+
 #include <cstdint>
 #include <string>
 
@@ -31,6 +33,17 @@ public:
      * @param text Текст отправляемого сообщения в кодировке UTF-8.
      */
     virtual void sendMessage(int64_t chatId, const std::string& text) = 0;
+
+    /**
+     * @brief Отправляет текстовое сообщение с inline-клавиатурой в чат Telegram.
+     * @param chatId Уникальный идентификатор целевого чата или диалога.
+     * @param text Текст отправляемого сообщения в кодировке UTF-8.
+     * @param keyboard Структура кнопок inline-клавиатуры.
+     */
+    virtual void sendMessageWithKeyboard(int64_t chatId, const std::string& text, const InlineKeyboard& keyboard) {
+        (void)keyboard;
+        sendMessage(chatId, text);
+    }
 
     /**
      * @brief Отправляет подтверждение на входящий callback-запрос от inline-кнопки.

@@ -39,6 +39,14 @@ public:
     void sendMessage(int64_t chatId, const std::string& text) override;
 
     /**
+     * @brief Отправляет текстовое сообщение с inline-клавиатурой через `TgBot::Api::sendMessage`.
+     * @param chatId Идентификатор целевого чата Telegram.
+     * @param text Текст сообщения.
+     * @param keyboard Структура кнопок inline-клавиатуры.
+     */
+    void sendMessageWithKeyboard(int64_t chatId, const std::string& text, const InlineKeyboard& keyboard) override;
+
+    /**
      * @brief Подтверждает callback-запрос через `TgBot::Api::answerCallbackQuery`.
      * @param callbackId Идентификатор callback-запроса Telegram.
      * @param text Опциональный текст уведомления.

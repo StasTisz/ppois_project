@@ -36,6 +36,43 @@ void TgBotMessenger::sendMessage(int64_t chatId, const std::string& text) {
 }
 
 /**
+ * @brief Отправка исходящего сообщения с прикрепленной inline-клавиатурой в чат Telegram.
+ * Преобразует DTO InlineKeyboard в структуру TgBot::InlineKeyboardMarkup.
+ * @param chatId Идентификатор целевого чата.
+ * @param text Текст сообщения.
+ * @param keyboard Структура inline-клавиатуры.
+ */
+void TgBotMessenger::sendMessageWithKeyboard(int64_t chatId, const std::string& text, const InlineKeyboard& keyboard) {
+    if (keyboard.empty()) {
+        sendMessage(chatId, text);
+        return;
+    }
+
+    auto markup = std::make_shared<TgBot::InlineKeyboardMarkup>();
+    markup->inlineKeyboard.reserve(keyboard.rows.size());
+
+    for (const auto& row : keyboard.rows) {
+        std::vector<TgBot::InlineKeyboardButton::Ptr> tgRow;
+        tgRow.reserve(row.size());
+        for (const auto& btn : row) {
+            auto tgBtn = std::make_shared<TgBot::InlineKeyboardButton>();
+            tgBtn->text = btn.text;
+            tgBtn->callbackData = btn.callbackData;
+            tgRow.push_back(std::move(tgBtn));
+        }
+        markup->inlineKeyboard.push_back(std::move(tgRow));
+    }
+
+    try {
+        bot_.getApi().sendMessage(chatId, text, nullptr, nullptr, markup);
+    } catch (const TgBot::TgException& e) {
+        std::cerr << "[TgBotMessenger] Ошибка Telegram API при sendMessageWithKeyboard: " << e.what() << "\n";
+    } catch (const std::exception& e) {
+        std::cerr << "[TgBotMessenger] Непредвиденная ошибка при sendMessageWithKeyboard: " << e.what() << "\n";
+    }
+}
+
+/**
  * @brief Подтверждение входящего callback-запроса от кнопки в Telegram.
  * @param callbackId Идентификатор подтверждаемого запроса.
  * @param text Опциональный текст уведомления.
