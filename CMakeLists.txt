@@ -79,6 +79,7 @@ add_executable(movie_rec_tests
     tests/test_bot_fsm.cpp
     tests/test_keyboard_factory.cpp
     tests/test_command_dispatcher.cpp
+    tests/test_movie_card.cpp
 )
 
 target_link_libraries(movie_rec_tests PRIVATE
