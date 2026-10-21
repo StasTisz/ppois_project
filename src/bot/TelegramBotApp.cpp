@@ -14,38 +14,21 @@ namespace bot {
 /**
  * @brief Конструктор адаптера мессенджера.
  * @param bot Ссылка на клиент `TgBot::Bot`.
+ * @param retryConfig Параметры политики повторных попыток при сетевых сбоях.
  */
-TgBotMessenger::TgBotMessenger(TgBot::Bot& bot)
-    : bot_(bot) {
+TgBotMessenger::TgBotMessenger(TgBot::Bot& bot, RetryConfig retryConfig)
+    : bot_(bot),
+      retryConfig_(retryConfig) {
 }
 
 /**
- * @brief Отправка исходящего сообщения в указанный чат Telegram.
- * Перехватывает исключения API и стандартные ошибки во избежание падения приложения.
- * @param chatId Идентификатор целевого чата.
- * @param text Текст сообщения.
+ * @brief Вспомогательный метод построения разметки inline-клавиатуры tgbot-cpp.
+ * @param keyboard Входная структура кнопок InlineKeyboard.
+ * @return Умный указатель на TgBot::InlineKeyboardMarkup.
  */
-void TgBotMessenger::sendMessage(int64_t chatId, const std::string& text) {
-    try {
-        bot_.getApi().sendMessage(chatId, text);
-    } catch (const TgBot::TgException& e) {
-        std::cerr << "[TgBotMessenger] Ошибка Telegram API при sendMessage: " << e.what() << "\n";
-    } catch (const std::exception& e) {
-        std::cerr << "[TgBotMessenger] Непредвиденная ошибка при sendMessage: " << e.what() << "\n";
-    }
-}
-
-/**
- * @brief Отправка исходящего сообщения с прикрепленной inline-клавиатурой в чат Telegram.
- * Преобразует DTO InlineKeyboard в структуру TgBot::InlineKeyboardMarkup.
- * @param chatId Идентификатор целевого чата.
- * @param text Текст сообщения.
- * @param keyboard Структура inline-клавиатуры.
- */
-void TgBotMessenger::sendMessageWithKeyboard(int64_t chatId, const std::string& text, const InlineKeyboard& keyboard) {
+TgBot::InlineKeyboardMarkup::Ptr TgBotMessenger::buildMarkup(const InlineKeyboard& keyboard) const {
     if (keyboard.empty()) {
-        sendMessage(chatId, text);
-        return;
+        return nullptr;
     }
 
     auto markup = std::make_shared<TgBot::InlineKeyboardMarkup>();
@@ -63,13 +46,67 @@ void TgBotMessenger::sendMessageWithKeyboard(int64_t chatId, const std::string& 
         markup->inlineKeyboard.push_back(std::move(tgRow));
     }
 
-    try {
-        bot_.getApi().sendMessage(chatId, text, nullptr, nullptr, markup);
-    } catch (const TgBot::TgException& e) {
-        std::cerr << "[TgBotMessenger] Ошибка Telegram API при sendMessageWithKeyboard: " << e.what() << "\n";
-    } catch (const std::exception& e) {
-        std::cerr << "[TgBotMessenger] Непредвиденная ошибка при sendMessageWithKeyboard: " << e.what() << "\n";
+    return markup;
+}
+
+/**
+ * @brief Отправка исходящего сообщения в указанный чат Telegram с политикой повторов.
+ * @param chatId Идентификатор целевого чата.
+ * @param text Текст сообщения.
+ */
+void TgBotMessenger::sendMessage(int64_t chatId, const std::string& text) {
+    NetworkErrorHandler::executeWithRetry([this, chatId, &text]() {
+        bot_.getApi().sendMessage(chatId, text);
+    }, retryConfig_);
+}
+
+/**
+ * @brief Отправка сообщения с inline-клавиатурой в чат Telegram с политикой повторов.
+ * @param chatId Идентификатор целевого чата.
+ * @param text Текст сообщения.
+ * @param keyboard Структура inline-клавиатуры.
+ */
+void TgBotMessenger::sendMessageWithKeyboard(int64_t chatId, const std::string& text, const InlineKeyboard& keyboard) {
+    if (keyboard.empty()) {
+        sendMessage(chatId, text);
+        return;
     }
+
+    auto markup = buildMarkup(keyboard);
+    NetworkErrorHandler::executeWithRetry([this, chatId, &text, &markup]() {
+        bot_.getApi().sendMessage(chatId, text, nullptr, nullptr, markup);
+    }, retryConfig_);
+}
+
+/**
+ * @brief Отправляет фото (постер) с подписью и inline-клавиатурой в чат Telegram.
+ * При сетевой ошибке или недоступности постера автоматически выполняет fallback на sendMessageWithKeyboard.
+ * @param chatId Идентификатор целевого чата.
+ * @param photoUrl URL постера фильма.
+ * @param caption Описание/подпись к фильму.
+ * @param keyboard Структура кнопок реакций.
+ * @return true при успешной отправке фото, false если сработал fallback на текст.
+ */
+bool TgBotMessenger::sendPhotoWithKeyboard(
+    int64_t chatId,
+    const std::string& photoUrl,
+    const std::string& caption,
+    const InlineKeyboard& keyboard) {
+    auto markup = buildMarkup(keyboard);
+    std::string lastError;
+
+    bool success = NetworkErrorHandler::executeWithRetry([this, chatId, &photoUrl, &caption, &markup]() {
+        bot_.getApi().sendPhoto(chatId, photoUrl, caption, nullptr, markup);
+    }, retryConfig_, &lastError);
+
+    if (!success) {
+        std::cerr << "[TgBotMessenger] Ошибка отправки постера (" << photoUrl
+                  << "): " << lastError << ". Выполняется fallback на текстовое сообщение.\n";
+        sendMessageWithKeyboard(chatId, caption, keyboard);
+        return false;
+    }
+
+    return true;
 }
 
 /**
@@ -78,28 +115,41 @@ void TgBotMessenger::sendMessageWithKeyboard(int64_t chatId, const std::string& 
  * @param text Опциональный текст уведомления.
  */
 void TgBotMessenger::answerCallbackQuery(const std::string& callbackId, const std::string& text) {
-    try {
+    NetworkErrorHandler::executeWithRetry([this, &callbackId, &text]() {
         bot_.getApi().answerCallbackQuery(callbackId, text);
-    } catch (const TgBot::TgException& e) {
-        std::cerr << "[TgBotMessenger] Ошибка Telegram API при answerCallbackQuery: " << e.what() << "\n";
-    } catch (const std::exception& e) {
-        std::cerr << "[TgBotMessenger] Непредвиденная ошибка при answerCallbackQuery: " << e.what() << "\n";
-    }
+    }, retryConfig_);
+}
+
+const RetryConfig& TgBotMessenger::getRetryConfig() const {
+    return retryConfig_;
+}
+
+void TgBotMessenger::setRetryConfig(const RetryConfig& config) {
+    retryConfig_ = config;
 }
 
 // --- Реализация TelegramBotApp ---
 
 /**
- * @brief Конструктор хоста бота, создающий адаптер и подключающий маршрутизатор.
- * @param token Токен Telegram-бота.
+ * @brief Конструктор хоста бота с полной конфигурацией.
+ * @param config Настройки приложения и токен Telegram-бота.
  */
-TelegramBotApp::TelegramBotApp(const std::string& token)
-    : bot_(token),
+TelegramBotApp::TelegramBotApp(const BotConfig& config)
+    : config_(config),
+      bot_(config.token),
       messenger_(std::make_shared<TgBotMessenger>(bot_)),
       router_(std::make_shared<BotEventRouter>(messenger_)),
       stateMachine_(std::make_shared<BotStateMachine>(messenger_)) {
     stateMachine_->attachToRouter(*router_);
     setupCallbacks();
+}
+
+/**
+ * @brief Конструктор хоста бота по токену (обратная совместимость).
+ * @param token Токен Telegram-бота.
+ */
+TelegramBotApp::TelegramBotApp(const std::string& token)
+    : TelegramBotApp(BotConfig{token}) {
 }
 
 /**
@@ -174,14 +224,18 @@ void TelegramBotApp::run() {
         std::cerr << "[TelegramBotApp] Предупреждение: не удалось получить имя бота: " << e.what() << "\n";
     }
 
-    TgBot::TgLongPoll longPoll(bot_);
+    TgBot::TgLongPoll longPoll(bot_, 100, config_.longPollTimeoutSeconds);
     while (isRunning_) {
         try {
             longPoll.start();
         } catch (const TgBot::TgException& e) {
-            std::cerr << "[TelegramBotApp] Ошибка Telegram API в цикле опроса: " << e.what() << "\n";
+            auto errType = NetworkErrorHandler::classifyError(e.what());
+            std::cerr << "[TelegramBotApp] Ошибка Telegram API в цикле опроса ("
+                      << static_cast<int>(errType) << "): " << e.what() << "\n";
         } catch (const std::exception& e) {
-            std::cerr << "[TelegramBotApp] Стандартное исключение в цикле опроса: " << e.what() << "\n";
+            auto errType = NetworkErrorHandler::classifyError(e.what());
+            std::cerr << "[TelegramBotApp] Стандартное исключение в цикле опроса ("
+                      << static_cast<int>(errType) << "): " << e.what() << "\n";
         }
     }
 
@@ -209,6 +263,14 @@ std::shared_ptr<BotEventRouter> TelegramBotApp::getRouter() const {
  */
 std::shared_ptr<BotStateMachine> TelegramBotApp::getStateMachine() const {
     return stateMachine_;
+}
+
+/**
+ * @brief Предоставляет доступ к клиенту отправки сообщений Telegram.
+ * @return Умный указатель на `TgBotMessenger`.
+ */
+std::shared_ptr<TgBotMessenger> TelegramBotApp::getMessenger() const {
+    return messenger_;
 }
 
 /**

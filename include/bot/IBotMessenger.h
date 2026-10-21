@@ -46,6 +46,28 @@ public:
     }
 
     /**
+     * @brief Отправляет фото (постер) с подписью и inline-клавиатурой в чат Telegram.
+     *
+     * Реализация по умолчанию выполняет fallback на sendMessageWithKeyboard,
+     * обеспечивая совместимость с тестовыми дублерами без графического вывода.
+     *
+     * @param chatId Уникальный идентификатор целевого чата или диалога.
+     * @param photoUrl URL-ссылка на изображение постера.
+     * @param caption Текстовая подпись к фото.
+     * @param keyboard Структура кнопок inline-клавиатуры.
+     * @return true при успешной отправке фото, false при ошибке или fallback.
+     */
+    virtual bool sendPhotoWithKeyboard(
+        int64_t chatId,
+        const std::string& photoUrl,
+        const std::string& caption,
+        const InlineKeyboard& keyboard) {
+        (void)photoUrl;
+        sendMessageWithKeyboard(chatId, caption, keyboard);
+        return true;
+    }
+
+    /**
      * @brief Отправляет подтверждение на входящий callback-запрос от inline-кнопки.
      *
      * Вызов этого метода прекращает анимацию загрузки ("часики") на клиенте пользователя Telegram.
