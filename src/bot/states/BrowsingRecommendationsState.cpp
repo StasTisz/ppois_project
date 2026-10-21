@@ -1,5 +1,6 @@
 #include "bot/states/BrowsingRecommendationsState.h"
 #include "bot/KeyboardFactory.h"
+#include "bot/MovieCardFormatter.h"
 
 #include <sstream>
 
@@ -102,31 +103,10 @@ void BrowsingRecommendationsState::showNextMovie(IDialogStateContext& ctx, UserS
     session.currentMovie = *nextMovie;
 
     if (messenger) {
-        std::ostringstream oss;
-        oss << "🎬 " << nextMovie->title << " (" << nextMovie->year << ")\n"
-            << "⭐ Рейтинг: " << nextMovie->ratingAvg << " / 10\n"
-            << "📁 Жанры: ";
-
-        for (size_t i = 0; i < nextMovie->genres.size(); ++i) {
-            oss << nextMovie->genres[i];
-            if (i + 1 < nextMovie->genres.size()) {
-                oss << ", ";
-            }
-        }
-        oss << "\n";
-
-        if (!nextMovie->director.empty()) {
-            oss << "👤 Режиссер: " << nextMovie->director << "\n";
-        }
-
-        if (!nextMovie->description.empty()) {
-            oss << "\n" << nextMovie->description << "\n";
-        }
-
-        oss << "\nВыберите реакцию кнопками ниже:";
-        messenger->sendMessageWithKeyboard(
+        MovieCardFormatter::sendMovieCard(
+            *messenger,
             session.chatId,
-            oss.str(),
+            *nextMovie,
             KeyboardFactory::createMovieReactionKeyboard());
     }
 }

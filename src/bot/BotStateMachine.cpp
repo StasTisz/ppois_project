@@ -40,6 +40,7 @@ void BotStateMachine::initFallbackMovies() {
     m1.director = "Кристофер Нолан";
     m1.description = "Кобб — искусный вор, крадущий ценные секреты из глубин подсознания во время сна.";
     m1.ratingAvg = 8.8;
+    m1.posterUrl = "https://image.tmdb.org/t/p/w500/edv5CZvWj09upOsy2Y6IwDhK8bt.jpg";
 
     core::Movie m2;
     m2.id = 2;
@@ -49,6 +50,7 @@ void BotStateMachine::initFallbackMovies() {
     m2.director = "Фрэнк Дарабонт";
     m2.description = "Бухгалтер Энди Дюфрейн обвинён в убийстве и оказывается в тюрьме Шоушенк.";
     m2.ratingAvg = 9.3;
+    m2.posterUrl = "https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg";
 
     core::Movie m3;
     m3.id = 3;
@@ -58,6 +60,7 @@ void BotStateMachine::initFallbackMovies() {
     m3.director = "Кристофер Нолан";
     m3.description = "Бэтмен вступает в битву с криминальным гением Джокером за спасение Готэма.";
     m3.ratingAvg = 9.0;
+    m3.posterUrl = "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg";
 
     core::Movie m4;
     m4.id = 4;
@@ -67,6 +70,7 @@ void BotStateMachine::initFallbackMovies() {
     m4.director = "Кристофер Нолан";
     m4.description = "Группа исследователей отправляется в путешествие сквозь червоточину в поисках нового дома для человечества.";
     m4.ratingAvg = 8.7;
+    m4.posterUrl = "https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg";
 
     fallbackMovies_ = {m1, m2, m3, m4};
 }
