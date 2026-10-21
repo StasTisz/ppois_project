@@ -7,6 +7,7 @@
 #include "repository/SQLiteMovieRepository.h"
 #include "repository/SQLiteUserRepository.h"
 #include "recommendation/PopularityRecommendationStrategy.h"
+#include "recommendation/ContentBasedRecommendationStrategy.h"
 #include "bot/BotState.h"
 
 int main() {
@@ -53,6 +54,23 @@ int main() {
         std::cout << "  " << (i + 1) << ". " << recs[i].title 
                   << " (" << recs[i].year << ") - "
                   << "Rating: " << recs[i].ratingAvg << "/10\n";
+    }
+
+    // Demo Task 1.4: Content-Based Strategy
+    recommendation::ContentBasedRecommendationStrategy contentStrategy(movieRepo, userRepo);
+    std::cout << "\n[REC] Active Strategy: " << contentStrategy.getName() << "\n";
+
+    int64_t fanUserId = 67890;
+    userRepo->saveUser({fanUserId, "scifi_director_fan", 0, 1700000000});
+    // User gave Interstellar (id 10) high score (10/10)
+    userRepo->addRating({0, fanUserId, 10, 10, 1700000100});
+
+    std::cout << "[REC] Content-based recommendations for user who liked 'Interstellar' (10/10):\n";
+    auto cbRecs = contentStrategy.recommend(fanUserId, 3);
+    for (size_t i = 0; i < cbRecs.size(); ++i) {
+        std::cout << "  " << (i + 1) << ". " << cbRecs[i].title 
+                  << " (" << cbRecs[i].year << ", Dir: " << cbRecs[i].director << ") - "
+                  << "Rating: " << cbRecs[i].ratingAvg << "/10\n";
     }
 
     const char* tokenEnv = std::getenv("TELEGRAM_BOT_TOKEN");

@@ -30,6 +30,7 @@ add_library(movie_rec_core STATIC
     src/repository/SQLiteMovieRepository.cpp
     src/repository/SQLiteUserRepository.cpp
     src/recommendation/PopularityRecommendationStrategy.cpp
+    src/recommendation/ContentBasedRecommendationStrategy.cpp
 )
 
 target_include_directories(movie_rec_core PUBLIC

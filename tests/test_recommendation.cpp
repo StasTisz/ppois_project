@@ -3,6 +3,7 @@
 #include "repository/SQLiteMovieRepository.h"
 #include "repository/SQLiteUserRepository.h"
 #include "recommendation/PopularityRecommendationStrategy.h"
+#include "recommendation/ContentBasedRecommendationStrategy.h"
 
 class PopularityStrategyTest : public ::testing::Test {
 protected:
@@ -101,4 +102,109 @@ TEST_F(PopularityStrategyTest, ZeroCountReturnsEmpty) {
     int64_t userId = 105;
     auto recs = strategy->recommend(userId, 0);
     EXPECT_TRUE(recs.empty());
+}
+
+// =========================================================================
+// Tests for Task 1.4: Content-Based Recommendation Strategy
+// =========================================================================
+
+class ContentBasedStrategyTest : public ::testing::Test {
+protected:
+    repository::DatabaseManager dbManager;
+    std::shared_ptr<repository::SQLiteMovieRepository> movieRepo;
+    std::shared_ptr<repository::SQLiteUserRepository> userRepo;
+    std::unique_ptr<recommendation::ContentBasedRecommendationStrategy> strategy;
+
+    void SetUp() override {
+        ASSERT_TRUE(dbManager.open(":memory:"));
+        ASSERT_TRUE(dbManager.initializeSchema());
+
+        movieRepo = std::make_shared<repository::SQLiteMovieRepository>(dbManager.getHandle());
+        userRepo = std::make_shared<repository::SQLiteUserRepository>(dbManager.getHandle());
+
+        strategy = std::make_unique<recommendation::ContentBasedRecommendationStrategy>(
+            movieRepo, userRepo, /*minScoreThreshold=*/7
+        );
+    }
+
+    void TearDown() override {
+        strategy.reset();
+        movieRepo.reset();
+        userRepo.reset();
+        dbManager.close();
+    }
+};
+
+TEST_F(ContentBasedStrategyTest, JaccardSimilarityCalculation) {
+    using Strategy = recommendation::ContentBasedRecommendationStrategy;
+
+    // Identical genres
+    EXPECT_DOUBLE_EQ(Strategy::calculateJaccardSimilarity({"Action", "Sci-Fi"}, {"Action", "Sci-Fi"}), 1.0);
+
+    // Completely disjoint
+    EXPECT_DOUBLE_EQ(Strategy::calculateJaccardSimilarity({"Action"}, {"Comedy"}), 0.0);
+
+    // Empty
+    EXPECT_DOUBLE_EQ(Strategy::calculateJaccardSimilarity({}, {"Action"}), 0.0);
+
+    // Partial overlap: {"Action", "Sci-Fi"} and {"Sci-Fi", "Drama"} -> inter=1, union=3 -> 1/3
+    double sim = Strategy::calculateJaccardSimilarity({"Action", "Sci-Fi"}, {"Sci-Fi", "Drama"});
+    EXPECT_NEAR(sim, 1.0 / 3.0, 0.0001);
+}
+
+TEST_F(ContentBasedStrategyTest, MovieSimilarityBoostsSameDirector) {
+    using Strategy = recommendation::ContentBasedRecommendationStrategy;
+
+    core::Movie m1{1, "Interstellar", 2014, {"Sci-Fi", "Adventure"}, "Christopher Nolan", "", 8.7, ""};
+    core::Movie m2SameDir{2, "Inception", 2010, {"Sci-Fi", "Action"}, "Christopher Nolan", "", 8.8, ""};
+    core::Movie m3DiffDir{3, "The Matrix", 1999, {"Sci-Fi", "Action"}, "Wachowskis", "", 8.7, ""};
+
+    double simSameDir = Strategy::calculateMovieSimilarity(m1, m2SameDir);
+    double simDiffDir = Strategy::calculateMovieSimilarity(m1, m3DiffDir);
+
+    // Nolan movie should be significantly more similar to another Nolan movie
+    EXPECT_GT(simSameDir, simDiffDir);
+}
+
+TEST_F(ContentBasedStrategyTest, RecommendsMoviesSimilarToHighlyRated) {
+    // Populate catalog
+    movieRepo->addMovie({10, "Interstellar", 2014, {"Sci-Fi", "Adventure"}, "Christopher Nolan", "", 8.7, ""});
+    movieRepo->addMovie({11, "Inception", 2010, {"Sci-Fi", "Action"}, "Christopher Nolan", "", 8.8, ""});
+    movieRepo->addMovie({12, "Tenet", 2020, {"Sci-Fi", "Action"}, "Christopher Nolan", "", 7.5, ""});
+    movieRepo->addMovie({13, "The Notebook", 2004, {"Romance", "Drama"}, "Nick Cassavetes", "", 9.0, ""});
+    movieRepo->addMovie({14, "La La Land", 2016, {"Comedy", "Drama", "Music"}, "Damien Chazelle", "", 8.0, ""});
+
+    int64_t userId = 777;
+    userRepo->saveUser({userId, "nolan_fan", 0, 1700000000});
+
+    // User gave Interstellar a rating of 10
+    userRepo->addRating({0, userId, 10, 10, 1700000100});
+
+    // Recommend 2 movies: should pick Inception and Tenet (same genre + same director), NOT The Notebook
+    auto recs = strategy->recommend(userId, 2);
+    ASSERT_EQ(recs.size(), 2);
+
+    EXPECT_NE(recs[0].id, 10); // Must exclude already rated
+    EXPECT_NE(recs[1].id, 10);
+
+    EXPECT_EQ(recs[0].id, 11); // Inception (Nolan + Sci-Fi + high rating)
+    EXPECT_EQ(recs[1].id, 12); // Tenet (Nolan + Sci-Fi)
+}
+
+TEST_F(ContentBasedStrategyTest, IgnoresLowRatedMoviesAsSeeds) {
+    movieRepo->addMovie({20, "Bad Horror", 2020, {"Horror"}, "Dir A", "", 4.0, ""});
+    movieRepo->addMovie({21, "Another Horror", 2021, {"Horror"}, "Dir A", "", 5.0, ""});
+    movieRepo->addMovie({22, "Top Movie", 2022, {"Drama"}, "Dir B", "", 9.5, ""});
+
+    int64_t userId = 888;
+    userRepo->saveUser({userId, "test", 0, 1700000000});
+
+    // User gave Bad Horror score 3 (below threshold 7)
+    userRepo->addRating({0, userId, 20, 3, 1700000100});
+
+    // Because score is below threshold, Bad Horror is NOT used as seed
+    // Falls back to overall top unrated movies
+    auto recs = strategy->recommend(userId, 1);
+    ASSERT_EQ(recs.size(), 1);
+    EXPECT_EQ(recs[0].id, 22); // Top Movie
 }
