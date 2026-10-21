@@ -52,6 +52,7 @@ add_library(movie_rec_bot_lib STATIC
     src/bot/KeyboardFactory.cpp
     src/bot/CommandDispatcher.cpp
     src/bot/NetworkErrorHandler.cpp
+    src/bot/MovieCardFormatter.cpp
     src/bot/states/DefaultState.cpp
     src/bot/states/GenreSelectionState.cpp
     src/bot/states/BrowsingRecommendationsState.cpp
