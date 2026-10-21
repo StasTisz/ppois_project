@@ -6,14 +6,13 @@
 #include "repository/DatabaseManager.h"
 #include "repository/SQLiteMovieRepository.h"
 #include "repository/SQLiteUserRepository.h"
-#include "recommendation/PopularityRecommendationStrategy.h"
-#include "recommendation/ContentBasedRecommendationStrategy.h"
+#include "recommendation/RecommendationService.h"
 #include "bot/BotState.h"
 
 int main() {
     std::cout << "========================================\n";
     std::cout << " Movie Recommendation Telegram Bot (C++)\n";
-    std::cout << " Backend, Repositories & Rec Engine (Task 1.1 - 1.3)\n";
+    std::cout << " Backend & Recommendation Facade (Task 1.1 - 1.5)\n";
     std::cout << "========================================\n\n";
 
     const std::string dbPath = "data/movies.db";
@@ -40,37 +39,45 @@ int main() {
     size_t movieCount = movieRepo->count();
     std::cout << "[OK] Total movies in database: " << movieCount << "\n\n";
 
-    // Demo Recommendation Strategy
-    recommendation::PopularityRecommendationStrategy popularityStrategy(movieRepo, userRepo);
-    std::cout << "[REC] Active Strategy: " << popularityStrategy.getName() << "\n";
+    // Initialize Recommendation Service Facade
+    recommendation::RecommendationService recService(movieRepo, userRepo);
 
-    int64_t demoUserId = 12345;
-    userRepo->saveUser({demoUserId, "demo_user", 0, 1700000000});
-    userRepo->setFavoriteGenres(demoUserId, {"Sci-Fi", "Animation"});
+    // 1. New user with only favorite genres (Auto -> Popularity / Cold-Start)
+    int64_t newUser = 1001;
+    userRepo->saveUser({newUser, "new_user", 0, 1700000000});
+    recService.setFavoriteGenres(newUser, {"Sci-Fi", "Animation"});
 
-    std::cout << "[REC] Generating top 3 recommendations for demo user (Favorite genres: Sci-Fi, Animation):\n";
-    auto recs = popularityStrategy.recommend(demoUserId, 3);
-    for (size_t i = 0; i < recs.size(); ++i) {
-        std::cout << "  " << (i + 1) << ". " << recs[i].title 
-                  << " (" << recs[i].year << ") - "
-                  << "Rating: " << recs[i].ratingAvg << "/10\n";
+    std::cout << "[SERVICE] User " << newUser << " (No ratings yet):\n";
+    std::cout << "  Auto strategy resolved: "
+              << recService.resolveStrategyName(newUser, recommendation::RecommendationMode::Auto) << "\n";
+    auto recsNew = recService.getRecommendations(newUser, 3);
+    for (size_t i = 0; i < recsNew.size(); ++i) {
+        std::cout << "  " << (i + 1) << ". " << recsNew[i].title 
+                  << " (" << recsNew[i].year << ") - "
+                  << "Rating: " << recsNew[i].ratingAvg << "/10\n";
     }
 
-    // Demo Task 1.4: Content-Based Strategy
-    recommendation::ContentBasedRecommendationStrategy contentStrategy(movieRepo, userRepo);
-    std::cout << "\n[REC] Active Strategy: " << contentStrategy.getName() << "\n";
+    // 2. Experienced user with positive rating (Auto -> Content-Based)
+    int64_t nolanFan = 1002;
+    userRepo->saveUser({nolanFan, "nolan_fan", 0, 1700000000});
+    recService.rateMovie(nolanFan, 10, 10); // Rated Interstellar (id 10) with 10/10
 
-    int64_t fanUserId = 67890;
-    userRepo->saveUser({fanUserId, "scifi_director_fan", 0, 1700000000});
-    // User gave Interstellar (id 10) high score (10/10)
-    userRepo->addRating({0, fanUserId, 10, 10, 1700000100});
+    std::cout << "\n[SERVICE] User " << nolanFan << " (Rated 'Interstellar' with 10/10):\n";
+    std::cout << "  Auto strategy resolved: "
+              << recService.resolveStrategyName(nolanFan, recommendation::RecommendationMode::Auto) << "\n";
+    auto recsFan = recService.getRecommendations(nolanFan, 3);
+    for (size_t i = 0; i < recsFan.size(); ++i) {
+        std::cout << "  " << (i + 1) << ". " << recsFan[i].title 
+                  << " (" << recsFan[i].year << ", Dir: " << recsFan[i].director << ") - "
+                  << "Rating: " << recsFan[i].ratingAvg << "/10\n";
+    }
 
-    std::cout << "[REC] Content-based recommendations for user who liked 'Interstellar' (10/10):\n";
-    auto cbRecs = contentStrategy.recommend(fanUserId, 3);
-    for (size_t i = 0; i < cbRecs.size(); ++i) {
-        std::cout << "  " << (i + 1) << ". " << cbRecs[i].title 
-                  << " (" << cbRecs[i].year << ", Dir: " << cbRecs[i].director << ") - "
-                  << "Rating: " << cbRecs[i].ratingAvg << "/10\n";
+    // 3. Similar movies query (e.g. for "More like this" bot button)
+    std::cout << "\n[SERVICE] Movies similar to 'Inception' (id 5):\n";
+    auto similar = recService.getSimilarMovies(5, 3);
+    for (size_t i = 0; i < similar.size(); ++i) {
+        std::cout << "  " << (i + 1) << ". " << similar[i].title 
+                  << " (" << similar[i].year << ", Dir: " << similar[i].director << ")\n";
     }
 
     const char* tokenEnv = std::getenv("TELEGRAM_BOT_TOKEN");
@@ -82,6 +89,6 @@ int main() {
         std::cout << "  - TELEGRAM_BOT_TOKEN found.\n";
     }
 
-    std::cout << "\n[DONE] Backend & Recommendation Engine (Strategy Pattern) ready!\n";
+    std::cout << "\n[DONE] Backend & RecommendationService Facade ready!\n";
     return 0;
 }
