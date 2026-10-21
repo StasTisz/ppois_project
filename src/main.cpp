@@ -1,16 +1,18 @@
 #include <iostream>
 #include <string>
 #include <cstdlib>
+#include <memory>
 
 #include "repository/DatabaseManager.h"
 #include "repository/SQLiteMovieRepository.h"
 #include "repository/SQLiteUserRepository.h"
+#include "recommendation/PopularityRecommendationStrategy.h"
 #include "bot/BotState.h"
 
 int main() {
     std::cout << "========================================\n";
     std::cout << " Movie Recommendation Telegram Bot (C++)\n";
-    std::cout << " Backend & SQLite Repositories (Task 1.1 & 1.2)\n";
+    std::cout << " Backend, Repositories & Rec Engine (Task 1.1 - 1.3)\n";
     std::cout << "========================================\n\n";
 
     const std::string dbPath = "data/movies.db";
@@ -31,18 +33,26 @@ int main() {
     std::cout << "[DB] Seeding dataset from data/initial_movies.json ...\n";
     dbManager.seedMoviesFromJson("data/initial_movies.json");
 
-    repository::SQLiteMovieRepository movieRepo(dbManager.getHandle());
-    repository::SQLiteUserRepository userRepo(dbManager.getHandle());
+    auto movieRepo = std::make_shared<repository::SQLiteMovieRepository>(dbManager.getHandle());
+    auto userRepo = std::make_shared<repository::SQLiteUserRepository>(dbManager.getHandle());
 
-    size_t movieCount = movieRepo.count();
+    size_t movieCount = movieRepo->count();
     std::cout << "[OK] Total movies in database: " << movieCount << "\n\n";
 
-    std::cout << "[INFO] Top 3 movies in database:\n";
-    auto topMovies = movieRepo.getTopRated(3);
-    for (size_t i = 0; i < topMovies.size(); ++i) {
-        std::cout << "  " << (i + 1) << ". " << topMovies[i].title 
-                  << " (" << topMovies[i].year << ") - "
-                  << "Rating: " << topMovies[i].ratingAvg << "/10\n";
+    // Demo Recommendation Strategy
+    recommendation::PopularityRecommendationStrategy popularityStrategy(movieRepo, userRepo);
+    std::cout << "[REC] Active Strategy: " << popularityStrategy.getName() << "\n";
+
+    int64_t demoUserId = 12345;
+    userRepo->saveUser({demoUserId, "demo_user", 0, 1700000000});
+    userRepo->setFavoriteGenres(demoUserId, {"Sci-Fi", "Animation"});
+
+    std::cout << "[REC] Generating top 3 recommendations for demo user (Favorite genres: Sci-Fi, Animation):\n";
+    auto recs = popularityStrategy.recommend(demoUserId, 3);
+    for (size_t i = 0; i < recs.size(); ++i) {
+        std::cout << "  " << (i + 1) << ". " << recs[i].title 
+                  << " (" << recs[i].year << ") - "
+                  << "Rating: " << recs[i].ratingAvg << "/10\n";
     }
 
     const char* tokenEnv = std::getenv("TELEGRAM_BOT_TOKEN");
@@ -54,6 +64,6 @@ int main() {
         std::cout << "  - TELEGRAM_BOT_TOKEN found.\n";
     }
 
-    std::cout << "\n[DONE] Database & Repository layer ready!\n";
+    std::cout << "\n[DONE] Backend & Recommendation Engine (Strategy Pattern) ready!\n";
     return 0;
 }

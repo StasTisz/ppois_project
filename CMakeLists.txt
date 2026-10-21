@@ -29,6 +29,7 @@ add_library(movie_rec_core STATIC
     src/repository/DatabaseManager.cpp
     src/repository/SQLiteMovieRepository.cpp
     src/repository/SQLiteUserRepository.cpp
+    src/recommendation/PopularityRecommendationStrategy.cpp
 )
 
 target_include_directories(movie_rec_core PUBLIC
@@ -55,6 +56,7 @@ target_link_libraries(movie_rec_bot PRIVATE
 add_executable(movie_rec_tests
     tests/test_main.cpp
     tests/test_repository.cpp
+    tests/test_recommendation.cpp
 )
 
 target_link_libraries(movie_rec_tests PRIVATE
