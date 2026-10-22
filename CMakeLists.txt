@@ -60,6 +60,7 @@ add_executable(movie_rec_tests
     tests/test_repository.cpp
     tests/test_recommendation.cpp
     tests/test_service.cpp
+    tests/test_pipeline.cpp
 )
 
 target_link_libraries(movie_rec_tests PRIVATE

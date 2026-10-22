@@ -104,6 +104,19 @@ TEST_F(PopularityStrategyTest, ZeroCountReturnsEmpty) {
     EXPECT_TRUE(recs.empty());
 }
 
+TEST_F(PopularityStrategyTest, CountExceedsAvailableCatalog) {
+    int64_t userId = 106;
+    userRepo->saveUser({userId, "test", 0, 1700000000});
+
+    // Request 100 movies when only 5 exist
+    auto recs = strategy->recommend(userId, 100);
+    EXPECT_EQ(recs.size(), 5);
+    // Verify descending order
+    for (size_t i = 1; i < recs.size(); ++i) {
+        EXPECT_GE(recs[i - 1].ratingAvg, recs[i].ratingAvg);
+    }
+}
+
 // =========================================================================
 // Tests for Task 1.4: Content-Based Recommendation Strategy
 // =========================================================================
@@ -207,4 +220,35 @@ TEST_F(ContentBasedStrategyTest, IgnoresLowRatedMoviesAsSeeds) {
     auto recs = strategy->recommend(userId, 1);
     ASSERT_EQ(recs.size(), 1);
     EXPECT_EQ(recs[0].id, 22); // Top Movie
+}
+
+TEST_F(ContentBasedStrategyTest, FallbackToFavoriteGenresWhenNoRatings) {
+    movieRepo->addMovie({30, "Alien", 1979, {"Horror", "Sci-Fi"}, "Ridley Scott", "", 8.5, ""});
+    movieRepo->addMovie({31, "The Thing", 1982, {"Horror", "Mystery"}, "John Carpenter", "", 8.2, ""});
+    movieRepo->addMovie({32, "Top Romance", 2020, {"Romance"}, "Dir C", "", 9.2, ""});
+
+    int64_t userId = 999;
+    userRepo->saveUser({userId, "genre_fan", 0, 1700000000});
+    // No ratings, but favorite genre is Horror
+    userRepo->setFavoriteGenres(userId, {"Horror"});
+
+    auto recs = strategy->recommend(userId, 2);
+    ASSERT_EQ(recs.size(), 2);
+    // Should prioritize Horror movies: Alien & The Thing
+    EXPECT_EQ(recs[0].id, 30);
+    EXPECT_EQ(recs[1].id, 31);
+}
+
+TEST_F(ContentBasedStrategyTest, AllMoviesRatedReturnsEmpty) {
+    movieRepo->addMovie({40, "Movie 1", 2020, {"Action"}, "Dir", "", 8.0, ""});
+    movieRepo->addMovie({41, "Movie 2", 2021, {"Action"}, "Dir", "", 8.5, ""});
+
+    int64_t userId = 1234;
+    userRepo->saveUser({userId, "movie_buff", 0, 1700000000});
+    userRepo->addRating({0, userId, 40, 10, 1700000100});
+    userRepo->addRating({0, userId, 41, 10, 1700000200});
+
+    // All movies in database are already rated
+    auto recs = strategy->recommend(userId, 5);
+    EXPECT_TRUE(recs.empty());
 }

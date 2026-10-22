@@ -71,6 +71,45 @@ TEST_F(RepositoryTest, GetTopRatedAndByGenre) {
     EXPECT_EQ(actionMovies[0].id, 3);
 }
 
+TEST_F(RepositoryTest, EmptyDatabaseQueries) {
+    EXPECT_EQ(movieRepo->count(), 0);
+    EXPECT_TRUE(movieRepo->getAll().empty());
+    EXPECT_TRUE(movieRepo->getTopRated(10).empty());
+    EXPECT_TRUE(movieRepo->getByGenre("Sci-Fi", 10).empty());
+    EXPECT_FALSE(movieRepo->getById(999).has_value());
+
+    EXPECT_FALSE(userRepo->getById(999).has_value());
+    EXPECT_TRUE(userRepo->getUserRatings(999).empty());
+    EXPECT_TRUE(userRepo->getFavoriteGenres(999).empty());
+    EXPECT_TRUE(userRepo->getRatedMovieIds(999).empty());
+}
+
+TEST_F(RepositoryTest, SpecialCharactersAndSQLInjectionSafety) {
+    // Tests that strings with quotes, semicolons and SQL keywords are treated purely as data
+    core::Movie injectionMovie;
+    injectionMovie.id = 500;
+    injectionMovie.title = "Robert'); DROP TABLE movies;--";
+    injectionMovie.year = 2024;
+    injectionMovie.genres = {"Crime", "Drama's finest", "Sci-Fi & Action"};
+    injectionMovie.director = "O'Connor & Sons";
+    injectionMovie.description = "Test description with \"quotes\" and 'single quotes' and symbols $#@!";
+    injectionMovie.ratingAvg = 8.0;
+    injectionMovie.posterUrl = "https://example.com/poster?id=1&name=test' OR '1'='1";
+
+    EXPECT_TRUE(movieRepo->addMovie(injectionMovie));
+    EXPECT_EQ(movieRepo->count(), 1);
+
+    auto retrieved = movieRepo->getById(500);
+    ASSERT_TRUE(retrieved.has_value());
+    EXPECT_EQ(retrieved->title, "Robert'); DROP TABLE movies;--");
+    EXPECT_EQ(retrieved->director, "O'Connor & Sons");
+    EXPECT_EQ(retrieved->genres.size(), 3);
+    EXPECT_EQ(retrieved->genres[1], "Drama's finest");
+
+    // Table movies still exists and is healthy
+    EXPECT_EQ(movieRepo->count(), 1);
+}
+
 TEST_F(RepositoryTest, SaveAndGetUser) {
     core::User user;
     user.telegramId = 987654321;
@@ -139,4 +178,39 @@ TEST_F(RepositoryTest, UserRatings) {
     });
     ASSERT_NE(it, ratings.end());
     EXPECT_EQ(it->score, 10);
+}
+
+TEST_F(RepositoryTest, ForeignKeyCascadeOnUserDelete) {
+    int64_t userId = 999111;
+    userRepo->saveUser({userId, "temporary_user", 0, 1700000000});
+
+    movieRepo->addMovie({1, "Test Movie", 2020, {"Drama"}, "Dir", "Desc", 8.0, ""});
+    userRepo->addRating({0, userId, 1, 9, 1700000100});
+    userRepo->setFavoriteGenres(userId, {"Drama"});
+
+    EXPECT_EQ(userRepo->getUserRatings(userId).size(), 1);
+    EXPECT_EQ(userRepo->getFavoriteGenres(userId).size(), 1);
+
+    // Delete user directly from SQLite
+    dbManager.execute("DELETE FROM users WHERE telegram_id = 999111;");
+
+    // Foreign key cascade must have removed associated ratings and favorite genres
+    EXPECT_TRUE(userRepo->getUserRatings(userId).empty());
+    EXPECT_TRUE(userRepo->getFavoriteGenres(userId).empty());
+}
+
+TEST_F(RepositoryTest, SeedDatasetFromJson) {
+    // Seed real 60-movie dataset
+    EXPECT_TRUE(dbManager.seedMoviesFromJson("data/initial_movies.json"));
+    EXPECT_EQ(movieRepo->count(), 60);
+
+    // Top movie in dataset is The Shawshank Redemption
+    auto top = movieRepo->getTopRated(1);
+    ASSERT_EQ(top.size(), 1);
+    EXPECT_EQ(top[0].title, "The Shawshank Redemption");
+    EXPECT_DOUBLE_EQ(top[0].ratingAvg, 9.3);
+
+    // Idempotent: second seeding does not duplicate records
+    EXPECT_TRUE(dbManager.seedMoviesFromJson("data/initial_movies.json"));
+    EXPECT_EQ(movieRepo->count(), 60);
 }
