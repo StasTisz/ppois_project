@@ -130,22 +130,6 @@ bool DatabaseManager::initializeSchema() {
 bool DatabaseManager::seedMoviesFromJson(const std::string& jsonFilePath) {
     if (!db_) return false;
 
-    // Check if table already contains data
-    sqlite3_stmt* checkStmt = nullptr;
-    const char* countSql = "SELECT COUNT(*) FROM movies;";
-    if (sqlite3_prepare_v2(db_, countSql, -1, &checkStmt, nullptr) == SQLITE_OK) {
-        if (sqlite3_step(checkStmt) == SQLITE_ROW) {
-            int count = sqlite3_column_int(checkStmt, 0);
-            sqlite3_finalize(checkStmt);
-            if (count > 0) {
-                // Table already has movies, skip seeding
-                return true;
-            }
-        } else {
-            sqlite3_finalize(checkStmt);
-        }
-    }
-
     std::ifstream file(jsonFilePath);
     if (!file.is_open()) {
         std::cerr << "[DatabaseManager] Cannot open seed dataset file: " << jsonFilePath << "\n";
