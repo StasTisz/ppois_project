@@ -52,12 +52,16 @@ public:
      * @param movie Объект фильма с метаданными.
      * @param maxLength Максимальная длина итогового текста (по умолчанию kMaxPhotoCaptionLength).
      * @param notice Опциональное вступительное уведомление о предыдущем действии пользователя.
+     * @param explanation Пояснение алгоритма, почему фильм рекомендован.
+     * @param userStatus Краткий статус пользователя (например, количество оцененных фильмов).
      * @return Отформатированная строка.
      */
     [[nodiscard]] static std::string formatMovieCard(
         const core::Movie& movie,
         size_t maxLength = kMaxPhotoCaptionLength,
-        const std::string& notice = "");
+        const std::string& notice = "",
+        const std::string& explanation = "",
+        const std::string& userStatus = "");
 
     /**
      * @brief Отправляет карточку фильма в чат Telegram: фото с подписью, либо текст с клавиатурой.
@@ -68,13 +72,17 @@ public:
      * @param movie Объект фильма.
      * @param keyboard Структура кнопок реакций.
      * @param notice Опциональное вступительное уведомление о предыдущем действии пользователя.
+     * @param explanation Пояснение алгоритма, почему фильм рекомендован.
+     * @param userStatus Краткий статус пользователя.
      */
     static void sendMovieCard(
         IBotMessenger& messenger,
         int64_t chatId,
         const core::Movie& movie,
         const InlineKeyboard& keyboard,
-        const std::string& notice = "");
+        const std::string& notice = "",
+        const std::string& explanation = "",
+        const std::string& userStatus = "");
 };
 
 } // namespace bot

@@ -61,7 +61,9 @@ std::string MovieCardFormatter::truncateUtf8Safe(const std::string& text, size_t
 std::string MovieCardFormatter::formatMovieCard(
     const core::Movie& movie,
     size_t maxLength,
-    const std::string& notice) {
+    const std::string& notice,
+    const std::string& explanation,
+    const std::string& userStatus) {
     std::ostringstream prefix;
     if (!notice.empty()) {
         prefix << notice << "\n\n";
@@ -90,6 +92,14 @@ std::string MovieCardFormatter::formatMovieCard(
 
     if (!movie.director.empty()) {
         prefix << "👤 Режиссер: " << movie.director << "\n";
+    }
+
+    if (!explanation.empty()) {
+        prefix << "\n" << explanation << "\n";
+    }
+
+    if (!userStatus.empty()) {
+        prefix << userStatus << "\n";
     }
 
     const std::string suffix = "\nВыберите реакцию кнопками ниже:";
@@ -124,8 +134,10 @@ void MovieCardFormatter::sendMovieCard(
     int64_t chatId,
     const core::Movie& movie,
     const InlineKeyboard& keyboard,
-    const std::string& notice) {
-    std::string caption = formatMovieCard(movie, kMaxPhotoCaptionLength, notice);
+    const std::string& notice,
+    const std::string& explanation,
+    const std::string& userStatus) {
+    std::string caption = formatMovieCard(movie, kMaxPhotoCaptionLength, notice, explanation, userStatus);
 
     if (hasValidPosterUrl(movie)) {
         bool sent = messenger.sendPhotoWithKeyboard(chatId, movie.posterUrl, caption, keyboard);

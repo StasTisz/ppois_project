@@ -133,6 +133,14 @@ public:
     [[nodiscard]] std::string getActiveStrategyName(int64_t userId) const override;
 
     /**
+     * @brief Формирует понятное объяснение причины рекомендации фильма.
+     * @param userId Идентификатор пользователя.
+     * @param movie Рекомендуемый фильм.
+     * @return Поясняющая строка алгоритма.
+     */
+    [[nodiscard]] std::string buildRecommendationExplanation(int64_t userId, const core::Movie& movie) const override;
+
+    /**
      * @brief Предоставляет доступ к диспетчеру глобальных команд.
      * @return Ссылка на объект CommandDispatcher.
      */

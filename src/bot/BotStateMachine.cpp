@@ -5,6 +5,7 @@
 #include "bot/states/DefaultState.h"
 #include "bot/states/GenreSelectionState.h"
 #include "bot/states/RatingState.h"
+#include "recommendation/ContentBasedRecommendationStrategy.h"
 
 #include <ctime>
 #include <iostream>
@@ -322,6 +323,88 @@ std::string BotStateMachine::getActiveStrategyName(int64_t userId) const {
         return recService_->resolveStrategyName(userId);
     }
     return "";
+}
+
+std::string BotStateMachine::buildRecommendationExplanation(int64_t userId, const core::Movie& movie) const {
+    const auto& session = const_cast<BotStateMachine*>(this)->getSession(userId);
+
+    // Собираем все положительные оценки пользователя (>= 7)
+    std::vector<std::pair<int64_t, int>> highRatings;
+    if (recService_) {
+        auto userRatings = recService_->getUserRatings(userId);
+        for (const auto& r : userRatings) {
+            if (r.score >= 7) {
+                highRatings.emplace_back(r.movieId, r.score);
+            }
+        }
+    } else {
+        for (const auto& [movieId, score] : session.movieRatings) {
+            if (score >= 7) {
+                highRatings.emplace_back(movieId, score);
+            }
+        }
+    }
+
+    if (highRatings.empty()) {
+        return "💡 Почему рекомендуем: 🔥 Топ рейтинга в выбранных вами жанрах (Режим: Cold-Start / Popularity)";
+    }
+
+    // Ищем фильм с максимальным контентным сходством
+    std::optional<core::Movie> bestSeedMovie;
+    double maxSimilarity = -1.0;
+
+    for (const auto& [seedId, score] : highRatings) {
+        if (seedId == movie.id) continue;
+        auto seedOpt = getMovieById(seedId);
+        if (!seedOpt.has_value()) continue;
+
+        double sim = recommendation::ContentBasedRecommendationStrategy::calculateMovieSimilarity(*seedOpt, movie);
+        if (sim > maxSimilarity) {
+            maxSimilarity = sim;
+            bestSeedMovie = seedOpt;
+        }
+    }
+
+    if (!bestSeedMovie.has_value()) {
+        return "💡 Почему рекомендуем: 🔥 Топ рейтинга в выбранных вами жанрах (Режим: Cold-Start / Popularity)";
+    }
+
+    // Находим общие жанры
+    std::vector<std::string> commonGenres;
+    for (const auto& g : movie.genres) {
+        if (std::find(bestSeedMovie->genres.begin(), bestSeedMovie->genres.end(), g) != bestSeedMovie->genres.end()) {
+            commonGenres.push_back(g);
+        }
+    }
+
+    bool sameDirector = (!movie.director.empty() && movie.director == bestSeedMovie->director);
+
+    std::ostringstream oss;
+    oss << "💡 Почему рекомендуем: 🧠 Умный подбор — похож на понравившийся вам «"
+        << bestSeedMovie->title << "» (";
+
+    bool hasMeta = false;
+    if (sameDirector) {
+        oss << "реж. " << movie.director;
+        hasMeta = true;
+    }
+
+    if (!commonGenres.empty()) {
+        if (hasMeta) oss << ", ";
+        oss << "жанры: ";
+        for (size_t i = 0; i < commonGenres.size(); ++i) {
+            oss << commonGenres[i];
+            if (i + 1 < commonGenres.size()) oss << ", ";
+        }
+        hasMeta = true;
+    }
+
+    if (!hasMeta) {
+        oss << "высокое сходство";
+    }
+
+    oss << ")";
+    return oss.str();
 }
 
 CommandDispatcher& BotStateMachine::getCommandDispatcher() {

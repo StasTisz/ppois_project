@@ -171,7 +171,15 @@ void BrowsingRecommendationsState::showNextMovie(IDialogStateContext& ctx, UserS
     InlineKeyboard keyboard = KeyboardFactory::createMovieReactionKeyboard();
     std::string notice = session.lastActionNotice;
     session.lastActionNotice.clear();
-    MovieCardFormatter::sendMovieCard(*messenger, session.chatId, *nextMovie, keyboard, notice);
+
+    std::string explanation = ctx.buildRecommendationExplanation(session.userId, *nextMovie);
+    size_t ratedCount = session.movieRatings.size();
+    std::string userStatus;
+    if (ratedCount > 0) {
+        userStatus = "📊 Оценено вами фильмов: " + std::to_string(ratedCount);
+    }
+
+    MovieCardFormatter::sendMovieCard(*messenger, session.chatId, *nextMovie, keyboard, notice, explanation, userStatus);
 }
 
 } // namespace bot

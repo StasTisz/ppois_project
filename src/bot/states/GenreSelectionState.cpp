@@ -16,8 +16,11 @@ BotState GenreSelectionState::getStateType() const {
 
 void GenreSelectionState::onEnter(IDialogStateContext& ctx, UserSession& session) {
     sendStatusMessage(ctx, session,
-        "🎬 Настройка предпочтений:\n"
-        "Выберите ваши любимые жанры, чтобы алгоритм подбирал подходящие фильмы.\n");
+        "🎬 Добро пожаловать в Movie Recommendation Bot!\n"
+        "Ваш персональный ИИ-киносоветчик с каталогом из 60 культовых фильмов.\n\n"
+        "Как работает подбор рекомендаций:\n"
+        "1️⃣ Старт по жанрам (Cold-Start) — выберите любимые жанры, и бот предложит признанные шедевры с высшим рейтингом.\n"
+        "2️⃣ Умный подбор (Content-Based AI) — после любого лайка (👍) или оценки 7-10 включается контентный анализ: алгоритм изучает сходство жанров (70%), режиссера (25%) и эпохи (5%) для персональных рекомендаций.\n");
 }
 
 void GenreSelectionState::handleMessage(IDialogStateContext& ctx, UserSession& session, const IncomingMessage& msg) {

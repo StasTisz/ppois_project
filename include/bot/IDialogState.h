@@ -112,6 +112,18 @@ public:
         (void)userId;
         return "";
     }
+
+    /**
+     * @brief Формирует понятное объяснение, почему фильм был предложен пользователю.
+     * @param userId Идентификатор пользователя.
+     * @param movie Рекомендуемый фильм.
+     * @return Понятная строка с описанием причины рекомендации.
+     */
+    [[nodiscard]] virtual std::string buildRecommendationExplanation(int64_t userId, const core::Movie& movie) const {
+        (void)userId;
+        (void)movie;
+        return "";
+    }
 };
 
 /**

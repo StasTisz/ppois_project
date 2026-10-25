@@ -39,6 +39,18 @@ public:
         messages.push_back({chatId, text, keyboard});
     }
 
+    struct EditRecord {
+        int64_t chatId{0};
+        int32_t messageId{0};
+        std::string text;
+        bot::InlineKeyboard keyboard;
+    };
+
+    void editMessageWithKeyboard(int64_t chatId, int32_t messageId, const std::string& text, const bot::InlineKeyboard& keyboard) override {
+        editedMessages.push_back({chatId, messageId, text, keyboard});
+        messages.push_back({chatId, text, keyboard});
+    }
+
     void answerCallbackQuery(const std::string& callbackId, const std::string& text = "") override {
         answeredCallbacks.push_back({callbackId, text});
     }
@@ -49,6 +61,7 @@ public:
     };
 
     std::vector<MessageRecord> messages;
+    std::vector<EditRecord> editedMessages;
     std::vector<CallbackRecord> answeredCallbacks;
 };
 
@@ -247,4 +260,38 @@ TEST_F(BotIntegrationTest, SimilarMoviesCommandReturnsNolanMatches) {
     // 4. Проверяем обработку callback-запроса "rec:similar"
     fsm->processCallback({"cb_sim_btn", testChatId, testUserId, 0, "rec:similar"});
     EXPECT_NE(spyMessenger->messages.back().text.find("Фильмы, похожие на «Inception»"), std::string::npos);
+}
+
+/**
+ * @test Проверяет объяснение рекомендаций (Cold-Start vs Content-Based) и редактирование сообщения на месте при выборе жанров.
+ */
+TEST_F(BotIntegrationTest, RecommendationExplanationAndInPlaceGenreEditing) {
+    // 1. Старт онбординга
+    fsm->processMessage({testChatId, testUserId, testUsername, "/start"});
+    EXPECT_EQ(fsm->getSession(testUserId).state, bot::BotState::SelectingGenres);
+
+    // 2. Переключение жанра по кнопке с messageId > 0 должно вызвать editMessageWithKeyboard
+    fsm->processCallback({"cb_1", testChatId, testUserId, 77, "genre:toggle:Sci-Fi"});
+    ASSERT_FALSE(spyMessenger->editedMessages.empty());
+    EXPECT_EQ(spyMessenger->editedMessages.back().messageId, 77);
+    EXPECT_NE(spyMessenger->editedMessages.back().text.find("Sci-Fi"), std::string::npos);
+
+    // 3. Подтверждение жанров
+    fsm->processCallback({"cb_confirm", testChatId, testUserId, 77, "genre:confirm"});
+    auto& session = fsm->getSession(testUserId);
+    EXPECT_EQ(session.state, bot::BotState::BrowsingRecommendations);
+    ASSERT_TRUE(session.currentMovie.has_value());
+
+    // 4. До выставления оценок объяснение должно ссылаться на Cold-Start / Popularity
+    std::string coldExplanation = fsm->buildRecommendationExplanation(testUserId, *session.currentMovie);
+    EXPECT_NE(coldExplanation.find("Cold-Start / Popularity"), std::string::npos);
+
+    // 5. Пользователь ставит лайк (10/10) первому фильму Inception
+    fsm->processCallback({"cb_like", testChatId, testUserId, 0, "rec:like"});
+    ASSERT_TRUE(session.currentMovie.has_value());
+
+    // 6. После положительной оценки объяснение следующего фильма должно указывать на умный подбор и фильм Inception
+    std::string contentExplanation = fsm->buildRecommendationExplanation(testUserId, *session.currentMovie);
+    EXPECT_NE(contentExplanation.find("Умный подбор"), std::string::npos);
+    EXPECT_NE(contentExplanation.find("Inception"), std::string::npos);
 }
