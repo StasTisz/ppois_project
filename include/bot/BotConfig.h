@@ -6,31 +6,34 @@
 
 /**
  * @file BotConfig.h
- * @brief Структуры конфигурации и загрузчики настроек Telegram-бота из переменных окружения.
+ * @brief Структура конфигурации Telegram-бота и параметры запуска.
  */
 
 namespace bot {
 
 /**
  * @struct BotConfig
- * @brief Инкапсулирует параметры времени выполнения для сервиса Telegram-бота (Задача 2.1).
- *
- * Содержит параметры сетевого взаимодействия, таймауты опроса и уровень логирования,
- * а также вспомогательные методы для создания конфигурации напрямую из переменных окружения.
+ * @brief Параметры инициализации и сетевого окружения бота.
  */
 struct BotConfig {
     /// Токен Telegram Bot API, полученный у @BotFather.
     std::string token;
 
-    /// Таймаут long-polling запросов к серверам Telegram в секундах.
-    int longPollTimeoutSeconds{10};
+    /// Таймаут опроса long-polling в секундах.
+    int longPollTimeoutSeconds{60};
 
-    /// Флаг включения подробного отладочного вывода в консоль.
+    /// Идентификатор канала или супергруппы для кэширования медиа-файлов (опционально).
+    int64_t storageChatId{0};
+
+    /// Флаг вывода подробных логов в консоль.
     bool debugLogging{true};
+
+    /// Размер пула потоков для асинхронной неблокирующей обработки событий.
+    size_t threadPoolSize{4};
 
     /**
      * @brief Фабричный метод, считывающий конфигурацию из переменных окружения или файла .env.
-     * Сначала проверяет `BOT_TOKEN`, затем `TELEGRAM_BOT_TOKEN`, затем локальный файл `.env`.
+     * Сначала проверяет переменные окружения, затем локальный файл `.env`.
      * @return Инициализированный объект BotConfig.
      */
     static BotConfig fromEnv() {
@@ -43,7 +46,28 @@ struct BotConfig {
             config.token = tokenEnv;
         }
 
-        // Если переменная окружения не задана, пробуем считать из локального файла .env
+        const char* storageChatEnv = std::getenv("BOT_STORAGE_CHAT_ID");
+        if (!storageChatEnv || std::string(storageChatEnv).empty()) {
+            storageChatEnv = std::getenv("STORAGE_CHAT_ID");
+        }
+        if (storageChatEnv) {
+            try {
+                config.storageChatId = std::stoll(storageChatEnv);
+            } catch (...) {
+                config.storageChatId = 0;
+            }
+        }
+
+        const char* threadsEnv = std::getenv("BOT_THREAD_POOL_SIZE");
+        if (threadsEnv) {
+            try {
+                config.threadPoolSize = std::stoul(threadsEnv);
+            } catch (...) {
+                config.threadPoolSize = 4;
+            }
+        }
+
+        // Если токен не задан в переменных окружения, пробуем считать из локального файла .env
         if (config.token.empty()) {
             std::ifstream envFile(".env");
             if (envFile.is_open()) {
@@ -70,9 +94,12 @@ struct BotConfig {
                             val.pop_back();
                         }
 
-                        if (key == "BOT_TOKEN" || key == "TELEGRAM_BOT_TOKEN") {
+                        if ((key == "BOT_TOKEN" || key == "TELEGRAM_BOT_TOKEN") && config.token.empty()) {
                             config.token = val;
-                            break;
+                        } else if ((key == "BOT_STORAGE_CHAT_ID" || key == "STORAGE_CHAT_ID") && config.storageChatId == 0) {
+                            try {
+                                config.storageChatId = std::stoll(val);
+                            } catch (...) {}
                         }
                     }
                 }
@@ -82,10 +109,6 @@ struct BotConfig {
         return config;
     }
 
-    /**
-     * @brief Проверяет наличие всех обязательных параметров для запуска бота.
-     * @return true, если задан непустой токен API, иначе false.
-     */
     [[nodiscard]] bool isValid() const {
         return !token.empty();
     }

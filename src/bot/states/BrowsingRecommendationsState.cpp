@@ -50,6 +50,7 @@ void BrowsingRecommendationsState::handleCallback(IDialogStateContext& ctx, User
     if (cb.data == "rec:like") {
         if (session.currentMovie) {
             session.movieRatings[session.currentMovie->id] = 10;
+            ctx.recordReaction(session.userId, session.currentMovie->id, true);
             if (auto messenger = ctx.getMessenger()) {
                 messenger->sendMessage(session.chatId, "👍 Вы отметили фильм как понравившийся (10/10)!");
             }
@@ -61,6 +62,7 @@ void BrowsingRecommendationsState::handleCallback(IDialogStateContext& ctx, User
     if (cb.data == "rec:dislike") {
         if (session.currentMovie) {
             session.movieRatings[session.currentMovie->id] = 1;
+            ctx.recordReaction(session.userId, session.currentMovie->id, false);
             if (auto messenger = ctx.getMessenger()) {
                 messenger->sendMessage(session.chatId, "👎 Вы отметили фильм как непонравившийся (1/10).");
             }
@@ -101,13 +103,18 @@ void BrowsingRecommendationsState::showNextMovie(IDialogStateContext& ctx, UserS
     }
 
     session.currentMovie = *nextMovie;
+    ctx.recordImpression(session.userId, nextMovie->id);
 
     if (messenger) {
         MovieCardFormatter::sendMovieCard(
             *messenger,
             session.chatId,
-            *nextMovie,
-            KeyboardFactory::createMovieReactionKeyboard());
+            *session.currentMovie,
+            KeyboardFactory::createMovieReactionKeyboard(),
+            0,
+            [&ctx](int64_t movieId, const std::string& fileId) {
+                ctx.cachePosterFileId(movieId, fileId);
+            });
     }
 }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/GenreMask.h"
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -15,6 +16,16 @@ struct Movie {
     std::string description;
     double ratingAvg{0.0};
     std::string posterUrl;
+    std::string posterFileId; // Кэшированный file_id Telegram для мгновенной доставки
+    std::string trailerUrl;   // Ссылка на трейлер (YouTube/Кинопоиск)
+    uint32_t genreMask{0};    // 32-битный микро-эмбеддинг жанров (Zero-Allocation)
+
+    [[nodiscard]] uint32_t getOrComputeGenreMask() const {
+        if (genreMask != 0) {
+            return genreMask;
+        }
+        return genresToMask(genres);
+    }
 
     bool operator==(const Movie& other) const {
         return id == other.id;

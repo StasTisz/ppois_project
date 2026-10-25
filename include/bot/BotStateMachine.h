@@ -1,3 +1,4 @@
+#include "analytics/MetricsCollector.h"
 #pragma once
 
 #include "bot/BotEvents.h"
@@ -9,6 +10,7 @@
 #include "core/Movie.h"
 
 #include <functional>
+#include <mutex>
 #include <memory>
 #include <optional>
 #include <string>
@@ -34,6 +36,7 @@ class BotStateMachine : public IDialogStateContext {
 public:
     /// Сигнатура функции-поставщика фильмов (для кастомизации рекомендаций).
     using MovieProvider = std::function<std::optional<core::Movie>(int64_t)>;
+    using PosterCacheCallback = std::function<void(int64_t, const std::string&)>;
 
     /**
      * @brief Конструктор автомата состояний. Инициализирует стандартные состояния и демо-фильмы.
@@ -99,6 +102,31 @@ public:
      * @param provider Функция-поставщик фильмов.
      */
     void setMovieProvider(MovieProvider provider);
+    void setStorageChatId(int64_t chatId) { storageChatId_ = chatId; }
+    [[nodiscard]] int64_t getStorageChatId() const override { return storageChatId_; }
+    void setPosterCacheCallback(PosterCacheCallback callback) { posterCacheCallback_ = std::move(callback); }
+    void cachePosterFileId(int64_t movieId, const std::string& fileId) override;
+    void setMetricsCollector(std::shared_ptr<analytics::MetricsCollector> collector) {
+        std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
+        metricsCollector_ = std::move(collector);
+    }
+    [[nodiscard]] std::shared_ptr<analytics::MetricsCollector> getMetricsCollector() const {
+        std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
+        return metricsCollector_;
+    }
+    void recordImpression(int64_t userId, int64_t movieId) override {
+        std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
+        if (metricsCollector_) {
+            metricsCollector_->recordImpression(userId, movieId);
+        }
+    }
+    void recordReaction(int64_t userId, int64_t movieId, bool isLike) override {
+        std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
+        if (metricsCollector_) {
+            if (isLike) metricsCollector_->recordLike(userId, movieId);
+            else metricsCollector_->recordDislike(userId, movieId);
+        }
+    }
 
     /**
      * @brief Обрабатывает входящее текстовое сообщение.
@@ -136,6 +164,10 @@ private:
     std::unordered_map<int64_t, UserSession> sessions_;
     std::vector<core::Movie> fallbackMovies_;
     MovieProvider movieProvider_;
+    mutable std::recursive_mutex sessionMutex_;
+    int64_t storageChatId_{0};
+    PosterCacheCallback posterCacheCallback_;
+    std::shared_ptr<analytics::MetricsCollector> metricsCollector_;
 };
 
 } // namespace bot

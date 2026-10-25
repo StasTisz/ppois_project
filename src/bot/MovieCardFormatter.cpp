@@ -116,18 +116,45 @@ std::string MovieCardFormatter::formatMovieCard(const core::Movie& movie, size_t
 void MovieCardFormatter::sendMovieCard(
     IBotMessenger& messenger,
     int64_t chatId,
-    const core::Movie& movie,
-    const InlineKeyboard& keyboard) {
+    core::Movie& movie,
+    const InlineKeyboard& keyboard,
+    int64_t /* storageChatId */,
+    std::function<void(int64_t, const std::string&)> onFileIdCached) {
     std::string caption = formatMovieCard(movie, kMaxPhotoCaptionLength);
 
-    if (hasValidPosterUrl(movie)) {
-        bool sent = messenger.sendPhotoWithKeyboard(chatId, movie.posterUrl, caption, keyboard);
-        if (!sent) {
-            messenger.sendMessageWithKeyboard(chatId, caption, keyboard);
+    // 1. Попытка мгновенной отправки по уже кэшированному posterFileId (~50мс)
+    if (!movie.posterFileId.empty()) {
+        bool sent = messenger.sendPhotoWithKeyboard(chatId, movie.posterFileId, caption, keyboard);
+        if (sent) {
+            return;
         }
-    } else {
-        messenger.sendMessageWithKeyboard(chatId, caption, keyboard);
+        // Если старый file_id сброшен сервером Telegram, очищаем и пробуем напрямую по URL
+        movie.posterFileId.clear();
     }
+
+    // 2. Отправка напрямую пользователю в чат по сетевому URL постера (1 шаг, без промежуточных групп)
+    if (hasValidPosterUrl(movie)) {
+        std::string obtainedFileId;
+        bool directSent = messenger.sendPhotoWithKeyboard(
+            chatId, movie.posterUrl, caption, keyboard, &obtainedFileId);
+        if (directSent) {
+            // Telegram в ответе возвращает присвоенный file_id. Сохраняем его для будущих запросов!
+            if (!obtainedFileId.empty()) {
+                movie.posterFileId = obtainedFileId;
+                if (onFileIdCached) {
+                    onFileIdCached(movie.id, obtainedFileId);
+                }
+            }
+            return;
+        }
+
+        // Если и URL недоступен (например, 404), отправляем текстовое сообщение
+        messenger.sendMessageWithKeyboard(chatId, caption, keyboard);
+        return;
+    }
+
+    // 3. Fallback: если URL постера отсутствует
+    messenger.sendMessageWithKeyboard(chatId, caption, keyboard);
 }
 
 } // namespace bot

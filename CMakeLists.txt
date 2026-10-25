@@ -30,15 +30,25 @@ else()
     set(TGBOT_TARGET tgbot-cpp::tgbot-cpp)
 endif()
 
-# Core domain interface library
-add_library(movie_rec_core INTERFACE)
+# Core domain & backend library
+add_library(movie_rec_core STATIC
+    src/repository/DatabaseManager.cpp
+    src/repository/SQLiteMovieRepository.cpp
+    src/repository/SQLiteUserRepository.cpp
+    src/recommendation/PopularityRecommendationStrategy.cpp
+    src/recommendation/ContentBasedRecommendationStrategy.cpp
+    src/recommendation/CollaborativeFilteringStrategy.cpp
+    src/recommendation/HybridRecommendationStrategy.cpp
+    src/recommendation/RecommendationService.cpp
+    src/analytics/MetricsCollector.cpp
+)
 
-target_include_directories(movie_rec_core INTERFACE
+target_include_directories(movie_rec_core PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(movie_rec_core INTERFACE
+target_link_libraries(movie_rec_core PUBLIC
     ${SQLITE3_TARGET}
     nlohmann_json::nlohmann_json
     ${TGBOT_TARGET}
@@ -59,8 +69,14 @@ add_library(movie_rec_bot_lib STATIC
     src/bot/states/RatingState.cpp
 )
 
+target_include_directories(movie_rec_bot_lib PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
 target_link_libraries(movie_rec_bot_lib PUBLIC
     movie_rec_core
+    ${TGBOT_TARGET}
 )
 
 # Main Telegram Bot Executable
@@ -70,20 +86,29 @@ add_executable(movie_rec_bot
 
 target_link_libraries(movie_rec_bot PRIVATE
     movie_rec_bot_lib
+    movie_rec_core
 )
 
 # Unit Tests Executable
 add_executable(movie_rec_tests
     tests/test_main.cpp
+    tests/test_repository.cpp
+    tests/test_recommendation.cpp
+    tests/test_service.cpp
+    tests/test_pipeline.cpp
     tests/test_bot_infra.cpp
     tests/test_bot_fsm.cpp
     tests/test_keyboard_factory.cpp
     tests/test_command_dispatcher.cpp
     tests/test_movie_card.cpp
+    tests/test_performance_optimizations.cpp
+    tests/test_collaborative_hybrid_metrics.cpp
+    tests/test_coverage_expansion.cpp
 )
 
 target_link_libraries(movie_rec_tests PRIVATE
     movie_rec_bot_lib
+    movie_rec_core
     GTest::gtest
     GTest::gtest_main
 )
