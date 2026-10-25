@@ -46,6 +46,26 @@ public:
     }
 
     /**
+     * @brief Редактирует существующее текстовое сообщение с inline-клавиатурой в чате Telegram.
+     *
+     * Реализация по умолчанию выполняет fallback на sendMessageWithKeyboard,
+     * обеспечивая совместимость с существующими тестовыми spy-мессенджерами.
+     *
+     * @param chatId Уникальный идентификатор целевого чата или диалога.
+     * @param messageId Идентификатор редактируемого сообщения.
+     * @param text Новый текст сообщения в кодировке UTF-8.
+     * @param keyboard Новая структура кнопок inline-клавиатуры.
+     */
+    virtual void editMessageWithKeyboard(
+        int64_t chatId,
+        int32_t messageId,
+        const std::string& text,
+        const InlineKeyboard& keyboard) {
+        (void)messageId;
+        sendMessageWithKeyboard(chatId, text, keyboard);
+    }
+
+    /**
      * @brief Отправляет фото (постер) с подписью и inline-клавиатурой в чат Telegram.
      *
      * Реализация по умолчанию выполняет fallback на sendMessageWithKeyboard,

@@ -79,6 +79,37 @@ void TgBotMessenger::sendMessageWithKeyboard(int64_t chatId, const std::string& 
 }
 
 /**
+ * @brief Редактирует существующее сообщение с inline-клавиатурой на месте.
+ * @param chatId Идентификатор целевого чата.
+ * @param messageId Идентификатор редактируемого сообщения.
+ * @param text Новый текст сообщения.
+ * @param keyboard Новая структура кнопок inline-клавиатуры.
+ */
+void TgBotMessenger::editMessageWithKeyboard(
+    int64_t chatId,
+    int32_t messageId,
+    const std::string& text,
+    const InlineKeyboard& keyboard) {
+    if (messageId <= 0) {
+        sendMessageWithKeyboard(chatId, text, keyboard);
+        return;
+    }
+
+    auto markup = buildMarkup(keyboard);
+    try {
+        bot_.getApi().editMessageText(text, chatId, messageId, "", "", nullptr, markup);
+    } catch (const TgBot::TgException& e) {
+        std::string err = e.what();
+        // Игнорируем штатную ошибку Telegram, если текст и разметка не изменились
+        if (err.find("message is not modified") == std::string::npos) {
+            std::cerr << "[TgBotMessenger] Предупреждение editMessageText: " << err << "\n";
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "[TgBotMessenger] Ошибка editMessageText: " << e.what() << "\n";
+    }
+}
+
+/**
  * @brief Отправляет фото (постер) с подписью и inline-клавиатурой в чат Telegram.
  * При сетевой ошибке или недоступности постера автоматически выполняет fallback на sendMessageWithKeyboard.
  * @param chatId Идентификатор целевого чата.
@@ -100,14 +131,33 @@ bool TgBotMessenger::sendPhotoWithKeyboard(
     RetryConfig mediaConfig = retryConfig_;
     mediaConfig.maxRetries = 0;
 
-    bool success = NetworkErrorHandler::executeWithRetry([this, chatId, &photoUrl, &caption, &markup]() {
-        bot_.getApi().sendPhoto(chatId, photoUrl, caption, 0, markup);
+    std::string photoTarget = photoUrl;
+    auto it = photoFileIdCache_.find(photoUrl);
+    if (it != photoFileIdCache_.end() && !it->second.empty()) {
+        photoTarget = it->second;
+    }
+
+    bool success = NetworkErrorHandler::executeWithRetry([this, chatId, &photoTarget, &photoUrl, &caption, &markup]() {
+        auto msg = bot_.getApi().sendPhoto(chatId, photoTarget, caption, 0, markup);
+        if (msg && !msg->photo.empty() && msg->photo.back()) {
+            photoFileIdCache_[photoUrl] = msg->photo.back()->fileId;
+        }
     }, mediaConfig, &lastError);
+
+    // Если отправка по закэшированному file_id не удалась, пробуем повторить по исходному photoUrl
+    if (!success && photoTarget != photoUrl) {
+        photoFileIdCache_.erase(photoUrl);
+        success = NetworkErrorHandler::executeWithRetry([this, chatId, &photoUrl, &caption, &markup]() {
+            auto msg = bot_.getApi().sendPhoto(chatId, photoUrl, caption, 0, markup);
+            if (msg && !msg->photo.empty() && msg->photo.back()) {
+                photoFileIdCache_[photoUrl] = msg->photo.back()->fileId;
+            }
+        }, mediaConfig, &lastError);
+    }
 
     if (!success) {
         std::cerr << "[TgBotMessenger] Ошибка отправки постера (" << photoUrl
                   << "): " << lastError << ". Выполняется fallback на текстовое сообщение.\n";
-        sendMessageWithKeyboard(chatId, caption, keyboard);
         return false;
     }
 

@@ -59,12 +59,16 @@ void GenreSelectionState::handleCallback(IDialogStateContext& ctx, UserSession& 
     const std::string togglePrefix = "genre:toggle:";
     if (cb.data.rfind(togglePrefix, 0) == 0) {
         std::string genre = cb.data.substr(togglePrefix.size());
-        bool added = session.toggleGenre(genre);
-        ctx.saveUserGenres(session.userId, session.selectedGenres);
-        std::string notice = added
-            ? ("✅ Жанр '" + genre + "' добавлен в предпочтения.\n")
-            : ("❌ Жанр '" + genre + "' удален из предпочтений.\n");
-        sendStatusMessage(ctx, session, notice);
+        session.toggleGenre(genre);
+
+        // НЕ вызываем ctx.saveUserGenres() на каждый клик - обновляем только в памяти
+        if (auto messenger = ctx.getMessenger()) {
+            std::string text = buildStatusText(session,
+                "🎬 Настройка предпочтений:\n"
+                "Выберите ваши любимые жанры, чтобы алгоритм подбирал подходящие фильмы.\n");
+            InlineKeyboard kb = KeyboardFactory::createGenreSelectionKeyboard(session.selectedGenres);
+            messenger->editMessageWithKeyboard(session.chatId, cb.messageId, text, kb);
+        }
         return;
     }
 
@@ -86,12 +90,7 @@ void GenreSelectionState::handleCallback(IDialogStateContext& ctx, UserSession& 
     }
 }
 
-void GenreSelectionState::sendStatusMessage(IDialogStateContext& ctx, const UserSession& session, const std::string& prefix) {
-    auto messenger = ctx.getMessenger();
-    if (!messenger) {
-        return;
-    }
-
+std::string GenreSelectionState::buildStatusText(const UserSession& session, const std::string& prefix) {
     std::ostringstream oss;
     if (!prefix.empty()) {
         oss << prefix << "\n";
@@ -110,10 +109,19 @@ void GenreSelectionState::sendStatusMessage(IDialogStateContext& ctx, const User
         oss << "\n";
     }
     oss << "Нажмите на жанр для добавления/удаления или «✅ Подтвердить выбор»:";
+    return oss.str();
+}
 
+void GenreSelectionState::sendStatusMessage(IDialogStateContext& ctx, const UserSession& session, const std::string& prefix) {
+    auto messenger = ctx.getMessenger();
+    if (!messenger) {
+        return;
+    }
+
+    std::string text = buildStatusText(session, prefix);
     messenger->sendMessageWithKeyboard(
         session.chatId,
-        oss.str(),
+        text,
         KeyboardFactory::createGenreSelectionKeyboard(session.selectedGenres));
 }
 

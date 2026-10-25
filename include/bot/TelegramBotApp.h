@@ -12,6 +12,7 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 /**
  * @file TelegramBotApp.h
@@ -50,6 +51,19 @@ public:
      * @param keyboard Структура кнопок inline-клавиатуры.
      */
     void sendMessageWithKeyboard(int64_t chatId, const std::string& text, const InlineKeyboard& keyboard) override;
+
+    /**
+     * @brief Редактирует существующее текстовое сообщение с inline-клавиатурой через `TgBot::Api::editMessageText`.
+     * @param chatId Идентификатор целевого чата Telegram.
+     * @param messageId Идентификатор редактируемого сообщения.
+     * @param text Новый текст сообщения.
+     * @param keyboard Новая структура кнопок inline-клавиатуры.
+     */
+    void editMessageWithKeyboard(
+        int64_t chatId,
+        int32_t messageId,
+        const std::string& text,
+        const InlineKeyboard& keyboard) override;
 
     /**
      * @brief Отправляет фото (постер) с подписью и inline-клавиатурой через `TgBot::Api::sendPhoto`.
@@ -95,6 +109,7 @@ private:
 
     TgBot::Bot& bot_;
     RetryConfig retryConfig_;
+    std::unordered_map<std::string, std::string> photoFileIdCache_;
 };
 
 /**

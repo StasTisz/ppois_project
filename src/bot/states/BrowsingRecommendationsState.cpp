@@ -82,9 +82,7 @@ void BrowsingRecommendationsState::handleCallback(IDialogStateContext& ctx, User
     if (cb.data == "rec:like") {
         if (session.currentMovie) {
             ctx.recordMovieRating(session.userId, session.currentMovie->id, 10);
-            if (auto messenger = ctx.getMessenger()) {
-                messenger->sendMessage(session.chatId, "👍 Вы отметили фильм как понравившийся (10/10)!");
-            }
+            session.lastActionNotice = "👍 Вы отметили фильм как понравившийся (10/10)!";
         }
         showNextMovie(ctx, session);
         return;
@@ -93,9 +91,7 @@ void BrowsingRecommendationsState::handleCallback(IDialogStateContext& ctx, User
     if (cb.data == "rec:dislike") {
         if (session.currentMovie) {
             ctx.recordMovieRating(session.userId, session.currentMovie->id, 1);
-            if (auto messenger = ctx.getMessenger()) {
-                messenger->sendMessage(session.chatId, "👎 Вы отметили фильм как непонравившийся (1/10).");
-            }
+            session.lastActionNotice = "👎 Вы отметили фильм как непонравившийся (1/10).";
         }
         showNextMovie(ctx, session);
         return;
@@ -104,6 +100,7 @@ void BrowsingRecommendationsState::handleCallback(IDialogStateContext& ctx, User
     if (cb.data == "rec:next") {
         if (session.currentMovie) {
             session.markSkipped(session.currentMovie->id);
+            session.lastActionNotice = "⏭ Фильм «" + session.currentMovie->title + "» пропущен.";
         }
         showNextMovie(ctx, session);
         return;
@@ -172,7 +169,9 @@ void BrowsingRecommendationsState::showNextMovie(IDialogStateContext& ctx, UserS
     }
 
     InlineKeyboard keyboard = KeyboardFactory::createMovieReactionKeyboard();
-    MovieCardFormatter::sendMovieCard(*messenger, session.chatId, *nextMovie, keyboard);
+    std::string notice = session.lastActionNotice;
+    session.lastActionNotice.clear();
+    MovieCardFormatter::sendMovieCard(*messenger, session.chatId, *nextMovie, keyboard, notice);
 }
 
 } // namespace bot

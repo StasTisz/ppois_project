@@ -58,8 +58,14 @@ std::string MovieCardFormatter::truncateUtf8Safe(const std::string& text, size_t
     return text.substr(0, idx) + "...";
 }
 
-std::string MovieCardFormatter::formatMovieCard(const core::Movie& movie, size_t maxLength) {
+std::string MovieCardFormatter::formatMovieCard(
+    const core::Movie& movie,
+    size_t maxLength,
+    const std::string& notice) {
     std::ostringstream prefix;
+    if (!notice.empty()) {
+        prefix << notice << "\n\n";
+    }
 
     prefix << "🎬 " << movie.title;
     if (movie.year > 0) {
@@ -117,8 +123,9 @@ void MovieCardFormatter::sendMovieCard(
     IBotMessenger& messenger,
     int64_t chatId,
     const core::Movie& movie,
-    const InlineKeyboard& keyboard) {
-    std::string caption = formatMovieCard(movie, kMaxPhotoCaptionLength);
+    const InlineKeyboard& keyboard,
+    const std::string& notice) {
+    std::string caption = formatMovieCard(movie, kMaxPhotoCaptionLength, notice);
 
     if (hasValidPosterUrl(movie)) {
         bool sent = messenger.sendPhotoWithKeyboard(chatId, movie.posterUrl, caption, keyboard);

@@ -42,6 +42,8 @@ bool DatabaseManager::open(const std::string& dbPath) {
     }
     dbPath_ = dbPath;
     execute("PRAGMA foreign_keys = ON;");
+    execute("PRAGMA journal_mode = WAL;");
+    execute("PRAGMA synchronous = NORMAL;");
     return true;
 }
 

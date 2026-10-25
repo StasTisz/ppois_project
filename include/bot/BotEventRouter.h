@@ -3,6 +3,7 @@
 #include "bot/BotEvents.h"
 #include "bot/IBotMessenger.h"
 
+#include <chrono>
 #include <functional>
 #include <memory>
 #include <string>
@@ -75,9 +76,17 @@ public:
     [[nodiscard]] std::shared_ptr<IBotMessenger> getMessenger() const;
 
 private:
+    struct LastCallbackInfo {
+        int64_t userId{0};
+        int32_t messageId{0};
+        std::string data;
+        std::chrono::steady_clock::time_point timestamp{};
+    };
+
     std::shared_ptr<IBotMessenger> messenger_;
     MessageHandler customMessageHandler_;
     CallbackHandler customCallbackHandler_;
+    LastCallbackInfo lastCallback_;
 };
 
 } // namespace bot

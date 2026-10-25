@@ -65,13 +65,6 @@ bool CommandDispatcher::dispatch(const IncomingMessage& msg) {
 }
 
 void CommandDispatcher::handleStart(UserSession& session) {
-    if (messenger_) {
-        std::string welcome = "👋 Добро пожаловать" +
-            (session.username.empty() ? "" : (", @" + session.username)) +
-            " в Movie Recommendation Bot!\n"
-            "Я помогу найти отличные фильмы по вашим предпочтениям.";
-        messenger_->sendMessage(session.chatId, welcome);
-    }
     context_.transitionTo(session.userId, BotState::SelectingGenres);
 }
 

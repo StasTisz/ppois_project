@@ -52,6 +52,14 @@ public:
 
 private:
     /**
+     * @brief Формирует текст сообщения о выбранных жанрах.
+     * @param session Сессия текущего пользователя.
+     * @param prefix Опциональный вступительный текст.
+     * @return Отформатированная строка.
+     */
+    static std::string buildStatusText(const UserSession& session, const std::string& prefix = "");
+
+    /**
      * @brief Вспомогательный метод формирования и отправки статуса выбранных жанров.
      * @param ctx Контекст конечного автомата.
      * @param session Сессия текущего пользователя.
