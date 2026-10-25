@@ -49,7 +49,16 @@ double ContentBasedRecommendationStrategy::calculateMovieSimilarity(
     const core::Movie& b
 ) {
     // 1. Genre similarity (weight: 0.70)
-    double genreSim = calculateJaccardSimilarity(a.genres, b.genres);
+    // Используем сверхбыстрый побитовый Жаккар (Zero-Allocation micro-embeddings)
+    uint32_t maskA = a.getOrComputeGenreMask();
+    uint32_t maskB = b.getOrComputeGenreMask();
+
+    double genreSim = 0.0;
+    if (maskA != 0 && maskB != 0) {
+        genreSim = core::calculateJaccardBitwise(maskA, maskB);
+    } else {
+        genreSim = calculateJaccardSimilarity(a.genres, b.genres);
+    }
 
     // 2. Director similarity (weight: 0.25)
     double directorSim = 0.0;

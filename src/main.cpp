@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include <cstdlib>
+#include <vector>
 
 #include "repository/DatabaseManager.h"
 #include "repository/SQLiteMovieRepository.h"
@@ -52,6 +53,41 @@ int main() {
     std::cout << "[INFO] Инициализация TelegramBotApp с конфигурацией из окружения...\n";
     try {
         bot::TelegramBotApp app(config);
+        auto sm = app.getStateMachine();
+        if (sm) {
+            sm->setMetricsCollector(recService->getMetricsCollector());
+            sm->setPosterCacheCallback([movieRepo](int64_t movieId, const std::string& fileId) {
+                movieRepo->updatePosterFileId(movieId, fileId);
+                std::cout << "[PosterCache] Сохранен Telegram file_id для фильма ID=" << movieId << "\n";
+            });
+            sm->setMovieProvider([recService, userRepo, sm](int64_t userId) -> std::optional<core::Movie> {
+                auto& session = sm->getSession(userId);
+                auto user = userRepo->getById(userId);
+                if (!user) {
+                    core::User newUser;
+                    newUser.telegramId = userId;
+                    newUser.username = session.username.empty() ? ("user_" + std::to_string(userId)) : session.username;
+                    newUser.stateId = 0;
+                    newUser.createdAt = 0;
+                    userRepo->saveUser(newUser);
+
+                    if (!session.selectedGenres.empty()) {
+                        std::vector<std::string> genres(session.selectedGenres.begin(), session.selectedGenres.end());
+                        userRepo->setFavoriteGenres(userId, genres);
+                    }
+                    user = userRepo->getById(userId);
+                }
+                if (user) {
+                    auto recs = recService->recommend(userId, 20);
+                    for (const auto& m : recs) {
+                        if (session.movieRatings.find(m.id) == session.movieRatings.end()) {
+                            return m;
+                        }
+                    }
+                }
+                return std::nullopt;
+            });
+        }
         app.run();
     } catch (const std::exception& e) {
         std::cerr << "[FATAL] Необработанное исключение в TelegramBotApp: " << e.what() << "\n";

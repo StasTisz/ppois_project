@@ -1,6 +1,9 @@
 #include "recommendation/RecommendationService.h"
 #include "recommendation/PopularityRecommendationStrategy.h"
 #include "recommendation/ContentBasedRecommendationStrategy.h"
+#include "recommendation/CollaborativeFilteringStrategy.h"
+#include "recommendation/HybridRecommendationStrategy.h"
+
 #include <chrono>
 #include <algorithm>
 
@@ -13,18 +16,32 @@ RecommendationService::RecommendationService(
     : movieRepo_(std::move(movieRepo)),
       userRepo_(std::move(userRepo)),
       popularityStrategy_(std::make_shared<PopularityRecommendationStrategy>(movieRepo_, userRepo_)),
-      contentBasedStrategy_(std::make_shared<ContentBasedRecommendationStrategy>(movieRepo_, userRepo_)) {}
+      contentBasedStrategy_(std::make_shared<ContentBasedRecommendationStrategy>(movieRepo_, userRepo_)),
+      collaborativeStrategy_(std::make_shared<CollaborativeFilteringStrategy>(movieRepo_, userRepo_)),
+      hybridStrategy_(std::make_shared<HybridRecommendationStrategy>(
+          movieRepo_, userRepo_, popularityStrategy_, contentBasedStrategy_, collaborativeStrategy_, 0.15)),
+      metricsCollector_(std::make_shared<analytics::MetricsCollector>()) {}
 
 RecommendationService::RecommendationService(
     std::shared_ptr<repository::IMovieRepository> movieRepo,
     std::shared_ptr<repository::IUserRepository> userRepo,
     std::shared_ptr<IRecommendationStrategy> popularityStrategy,
-    std::shared_ptr<IRecommendationStrategy> contentBasedStrategy
+    std::shared_ptr<IRecommendationStrategy> contentBasedStrategy,
+    std::shared_ptr<IRecommendationStrategy> collaborativeStrategy,
+    std::shared_ptr<IRecommendationStrategy> hybridStrategy
 )
     : movieRepo_(std::move(movieRepo)),
       userRepo_(std::move(userRepo)),
       popularityStrategy_(std::move(popularityStrategy)),
-      contentBasedStrategy_(std::move(contentBasedStrategy)) {}
+      contentBasedStrategy_(std::move(contentBasedStrategy)),
+      collaborativeStrategy_(collaborativeStrategy
+          ? std::move(collaborativeStrategy)
+          : std::make_shared<CollaborativeFilteringStrategy>(movieRepo_, userRepo_)),
+      hybridStrategy_(hybridStrategy
+          ? std::move(hybridStrategy)
+          : std::make_shared<HybridRecommendationStrategy>(
+              movieRepo_, userRepo_, popularityStrategy_, contentBasedStrategy_, collaborativeStrategy_, 0.15)),
+      metricsCollector_(std::make_shared<analytics::MetricsCollector>()) {}
 
 bool RecommendationService::hasSufficientHistory(int64_t userId, int minPositiveRatings) const {
     if (!userRepo_) return false;
@@ -57,10 +74,21 @@ std::shared_ptr<IRecommendationStrategy> RecommendationService::selectStrategy(
         case RecommendationMode::ContentBased:
             return contentBasedStrategy_;
 
+        case RecommendationMode::Collaborative:
+            return collaborativeStrategy_;
+
+        case RecommendationMode::Hybrid:
+            return hybridStrategy_;
+
         case RecommendationMode::Auto:
         default:
-            // Auto-selection: If user has rated at least one movie positively (score >= 7),
-            // use Content-Based strategy; otherwise fall back to Cold-Start / Popularity.
+            // Auto-selection:
+            // 1. Зрелый профиль (>= 3 положительных оценок): гибридная фильтрация с Exploration/Exploitation
+            // 2. Начальный профиль (1-2 положительные оценки): контентная фильтрация
+            // 3. Холодный старт (0 оценок): стратегия популярности
+            if (hasSufficientHistory(userId, 3) && hybridStrategy_) {
+                return hybridStrategy_;
+            }
             if (hasSufficientHistory(userId, 1)) {
                 return contentBasedStrategy_;
             }
@@ -77,6 +105,8 @@ std::vector<core::Movie> RecommendationService::getRecommendations(
         return {};
     }
 
+    auto start = std::chrono::steady_clock::now();
+
     auto strategy = selectStrategy(userId, mode);
     if (!strategy) {
         return {};
@@ -84,11 +114,19 @@ std::vector<core::Movie> RecommendationService::getRecommendations(
 
     auto recommendations = strategy->recommend(userId, count);
 
-    // Fallback: If content-based produced nothing (e.g. edge case), try popularity
+    // Fallback: если выбранная стратегия ничего не вернула, используем популярные
     if (recommendations.empty() && mode == RecommendationMode::Auto && strategy != popularityStrategy_) {
         if (popularityStrategy_) {
             recommendations = popularityStrategy_->recommend(userId, count);
         }
+    }
+
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now() - start);
+
+    if (metricsCollector_) {
+        metricsCollector_->recordRecommendationLatency(elapsed);
+        metricsCollector_->recordUserActivity(userId);
     }
 
     return recommendations;
@@ -100,6 +138,32 @@ std::string RecommendationService::resolveStrategyName(
 ) const {
     auto strategy = selectStrategy(userId, mode);
     return strategy ? strategy->getName() : "None";
+}
+
+std::vector<core::Movie> RecommendationService::searchMovies(const std::string& query, size_t limit) const {
+    if (!movieRepo_ || query.empty()) {
+        return {};
+    }
+    return movieRepo_->findByTitle(query, limit);
+}
+
+void RecommendationService::setExplorationRate(double rate) {
+    explorationRate_ = std::clamp(rate, 0.0, 1.0);
+    if (auto hybrid = std::dynamic_pointer_cast<HybridRecommendationStrategy>(hybridStrategy_)) {
+        hybrid->setExplorationRate(explorationRate_);
+    }
+}
+
+double RecommendationService::getExplorationRate() const {
+    return explorationRate_;
+}
+
+std::shared_ptr<analytics::MetricsCollector> RecommendationService::getMetricsCollector() const {
+    return metricsCollector_;
+}
+
+void RecommendationService::setMetricsCollector(std::shared_ptr<analytics::MetricsCollector> collector) {
+    metricsCollector_ = std::move(collector);
 }
 
 std::vector<core::Movie> RecommendationService::getSimilarMovies(int64_t movieId, size_t count) {
@@ -120,7 +184,7 @@ std::vector<core::Movie> RecommendationService::getSimilarMovies(int64_t movieId
 
     for (const auto& movie : allMovies) {
         if (movie.id == movieId) {
-            continue; // Skip the movie itself
+            continue; // Пропускаем сам целевой фильм
         }
         double sim = ContentBasedRecommendationStrategy::calculateMovieSimilarity(movie, targetMovie);
         scored.emplace_back(movie, sim);
@@ -139,7 +203,6 @@ std::vector<core::Movie> RecommendationService::getSimilarMovies(int64_t movieId
     for (size_t i = 0; i < count && i < scored.size(); ++i) {
         result.push_back(scored[i].first);
     }
-
     return result;
 }
 
@@ -149,7 +212,7 @@ bool RecommendationService::rateMovie(int64_t userId, int64_t movieId, int score
     }
 
     if (!movieRepo_->getById(movieId).has_value()) {
-        return false; // Movie does not exist
+        return false; // Фильм не найден в каталоге
     }
 
     auto now = std::chrono::system_clock::now();
@@ -158,7 +221,15 @@ bool RecommendationService::rateMovie(int64_t userId, int64_t movieId, int score
     ).count();
 
     core::Rating rating{0, userId, movieId, score, timestamp};
-    return userRepo_->addRating(rating);
+    bool ok = userRepo_->addRating(rating);
+    if (ok && metricsCollector_) {
+        if (score >= 7) {
+            metricsCollector_->recordLike(userId, movieId);
+        } else {
+            metricsCollector_->recordDislike(userId, movieId);
+        }
+    }
+    return ok;
 }
 
 bool RecommendationService::setFavoriteGenres(int64_t userId, const std::vector<std::string>& genres) {
@@ -187,6 +258,22 @@ void RecommendationService::setCustomStrategy(std::shared_ptr<IRecommendationStr
 
 void RecommendationService::clearCustomStrategy() {
     customStrategy_.reset();
+}
+
+std::shared_ptr<IRecommendationStrategy> RecommendationService::getPopularityStrategy() const {
+    return popularityStrategy_;
+}
+
+std::shared_ptr<IRecommendationStrategy> RecommendationService::getContentBasedStrategy() const {
+    return contentBasedStrategy_;
+}
+
+std::shared_ptr<IRecommendationStrategy> RecommendationService::getCollaborativeStrategy() const {
+    return collaborativeStrategy_;
+}
+
+std::shared_ptr<IRecommendationStrategy> RecommendationService::getHybridStrategy() const {
+    return hybridStrategy_;
 }
 
 } // namespace recommendation

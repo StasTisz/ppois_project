@@ -1,5 +1,6 @@
 #include "repository/DatabaseManager.h"
 #include <nlohmann/json.hpp>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -33,6 +34,15 @@ DatabaseManager& DatabaseManager::operator=(DatabaseManager&& other) noexcept {
 
 bool DatabaseManager::open(const std::string& dbPath) {
     close();
+    try {
+        std::filesystem::path p(dbPath);
+        if (p.has_parent_path()) {
+            std::filesystem::create_directories(p.parent_path());
+        }
+    } catch (...) {
+        // Fallback: ignore filesystem errors and let sqlite3 handle path
+    }
+
     int rc = sqlite3_open(dbPath.c_str(), &db_);
     if (rc != SQLITE_OK) {
         std::cerr << "[DatabaseManager] Failed to open SQLite database at: " 
@@ -42,6 +52,8 @@ bool DatabaseManager::open(const std::string& dbPath) {
     }
     dbPath_ = dbPath;
     execute("PRAGMA foreign_keys = ON;");
+    execute("PRAGMA journal_mode = WAL;");
+    execute("PRAGMA synchronous = NORMAL;");
     return true;
 }
 
@@ -88,7 +100,9 @@ bool DatabaseManager::initializeSchema() {
             director TEXT,
             description TEXT,
             rating_avg REAL,
-            poster_url TEXT
+            poster_url TEXT,
+            poster_file_id TEXT,
+            trailer_url TEXT
         );
 
         CREATE INDEX IF NOT EXISTS idx_movies_rating ON movies(rating_avg DESC);
@@ -122,7 +136,32 @@ bool DatabaseManager::initializeSchema() {
         );
     )";
 
-    return execute(schemaSql);
+    bool ok = execute(schemaSql);
+
+    // Безопасные миграции схемы для существующих баз данных
+    auto addColumnIfNotExists = [this](const std::string& colName, const std::string& colType) {
+        std::string checkSql = "PRAGMA table_info(movies);";
+        sqlite3_stmt* stmt = nullptr;
+        bool exists = false;
+        if (sqlite3_prepare_v2(db_, checkSql.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+                const auto* name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+                if (name && colName == name) {
+                    exists = true;
+                    break;
+                }
+            }
+            sqlite3_finalize(stmt);
+        }
+        if (!exists) {
+            execute("ALTER TABLE movies ADD COLUMN " + colName + " " + colType + ";");
+        }
+    };
+
+    addColumnIfNotExists("poster_file_id", "TEXT");
+    addColumnIfNotExists("trailer_url", "TEXT");
+
+    return ok;
 }
 
 bool DatabaseManager::seedMoviesFromJson(const std::string& jsonFilePath) {
@@ -167,8 +206,8 @@ bool DatabaseManager::seedMoviesFromJson(const std::string& jsonFilePath) {
 
     const char* insertSql = R"(
         INSERT OR REPLACE INTO movies 
-        (id, title, year, genres, director, description, rating_avg, poster_url) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+        (id, title, year, genres, director, description, rating_avg, poster_url, trailer_url) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
     )";
 
     sqlite3_stmt* stmt = nullptr;
@@ -203,8 +242,10 @@ bool DatabaseManager::seedMoviesFromJson(const std::string& jsonFilePath) {
         sqlite3_bind_text(stmt, 4, genresStr.c_str(), -1, SQLITE_TRANSIENT);
         sqlite3_bind_text(stmt, 5, director.c_str(), -1, SQLITE_TRANSIENT);
         sqlite3_bind_text(stmt, 6, description.c_str(), -1, SQLITE_TRANSIENT);
+        std::string trailerUrl = item.value("trailer_url", "");
         sqlite3_bind_double(stmt, 7, ratingAvg);
         sqlite3_bind_text(stmt, 8, posterUrl.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 9, trailerUrl.c_str(), -1, SQLITE_TRANSIENT);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
             std::cerr << "[DatabaseManager] Failed to insert movie id " << id << ": " 

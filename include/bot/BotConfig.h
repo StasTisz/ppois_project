@@ -12,10 +12,7 @@ namespace bot {
 
 /**
  * @struct BotConfig
- * @brief Инкапсулирует параметры времени выполнения для сервиса Telegram-бота (Задача 2.1).
- *
- * Содержит параметры сетевого взаимодействия, таймауты опроса и уровень логирования,
- * а также вспомогательные методы для создания конфигурации напрямую из переменных окружения.
+ * @brief Инкапсулирует параметры времени выполнения для сервиса Telegram-бота.
  */
 struct BotConfig {
     /// Токен Telegram Bot API, полученный у @BotFather.
@@ -27,10 +24,14 @@ struct BotConfig {
     /// Флаг включения подробного отладочного вывода в консоль.
     bool debugLogging{true};
 
+    /// Опциональный chat_id для предварительного кэширования медиа / хранения постеров.
+    int64_t storageChatId{0};
+
+    /// Размер пула потоков для асинхронной неблокирующей обработки событий.
+    size_t threadPoolSize{4};
+
     /**
-     * @brief Фабричный метод, считывающий конфигурацию из стандартных переменных окружения.
-     * Сначала проверяет `BOT_TOKEN`, затем `TELEGRAM_BOT_TOKEN`.
-     * @return Инициализированный объект BotConfig.
+     * @brief Фабричный метод, считывающий конфигурацию из переменных окружения.
      */
     static BotConfig fromEnv() {
         BotConfig config;
@@ -41,13 +42,31 @@ struct BotConfig {
         if (tokenEnv) {
             config.token = tokenEnv;
         }
+
+        const char* storageChatEnv = std::getenv("BOT_STORAGE_CHAT_ID");
+        if (!storageChatEnv || std::string(storageChatEnv).empty()) {
+            storageChatEnv = std::getenv("STORAGE_CHAT_ID");
+        }
+        if (storageChatEnv) {
+            try {
+                config.storageChatId = std::stoll(storageChatEnv);
+            } catch (...) {
+                config.storageChatId = 0;
+            }
+        }
+
+        const char* threadsEnv = std::getenv("BOT_THREAD_POOL_SIZE");
+        if (threadsEnv) {
+            try {
+                config.threadPoolSize = std::stoul(threadsEnv);
+            } catch (...) {
+                config.threadPoolSize = 4;
+            }
+        }
+
         return config;
     }
 
-    /**
-     * @brief Проверяет наличие всех обязательных параметров для запуска бота.
-     * @return true, если задан непустой токен API, иначе false.
-     */
     [[nodiscard]] bool isValid() const {
         return !token.empty();
     }

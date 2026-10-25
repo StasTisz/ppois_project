@@ -61,6 +61,11 @@ bool CommandDispatcher::dispatch(const IncomingMessage& msg) {
         return true;
     }
 
+    if (cmd == "/menu") {
+        context_.transitionTo(session.userId, BotState::Idle);
+        return true;
+    }
+
     return false;
 }
 

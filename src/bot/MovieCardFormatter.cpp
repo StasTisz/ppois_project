@@ -116,18 +116,57 @@ std::string MovieCardFormatter::formatMovieCard(const core::Movie& movie, size_t
 void MovieCardFormatter::sendMovieCard(
     IBotMessenger& messenger,
     int64_t chatId,
-    const core::Movie& movie,
-    const InlineKeyboard& keyboard) {
+    core::Movie& movie,
+    const InlineKeyboard& keyboard,
+    int64_t storageChatId,
+    std::function<void(int64_t, const std::string&)> onFileIdCached) {
     std::string caption = formatMovieCard(movie, kMaxPhotoCaptionLength);
 
-    if (hasValidPosterUrl(movie)) {
-        bool sent = messenger.sendPhotoWithKeyboard(chatId, movie.posterUrl, caption, keyboard);
-        if (!sent) {
-            messenger.sendMessageWithKeyboard(chatId, caption, keyboard);
+    // 1. Попытка мгновенной отправки по уже кэшированному posterFileId (~50мс)
+    if (!movie.posterFileId.empty()) {
+        bool sent = messenger.sendPhotoWithKeyboard(chatId, movie.posterFileId, caption, keyboard);
+        if (sent) {
+            return;
         }
-    } else {
-        messenger.sendMessageWithKeyboard(chatId, caption, keyboard);
+        movie.posterFileId.clear();
     }
+
+    // 2. Если есть сетевой URL постера
+    if (hasValidPosterUrl(movie)) {
+        std::string obtainedFileId;
+        if (storageChatId != 0) {
+            InlineKeyboard emptyKb;
+            bool storageSent = messenger.sendPhotoWithKeyboard(
+                storageChatId, movie.posterUrl, "Cache: " + movie.title, emptyKb, &obtainedFileId);
+            if (storageSent && !obtainedFileId.empty()) {
+                movie.posterFileId = obtainedFileId;
+                if (onFileIdCached) {
+                    onFileIdCached(movie.id, obtainedFileId);
+                }
+                bool sentToUser = messenger.sendPhotoWithKeyboard(chatId, obtainedFileId, caption, keyboard);
+                if (sentToUser) {
+                    return;
+                }
+            }
+        }
+
+        bool directSent = messenger.sendPhotoWithKeyboard(
+            chatId, movie.posterUrl, caption, keyboard, &obtainedFileId);
+        if (directSent) {
+            if (!obtainedFileId.empty()) {
+                movie.posterFileId = obtainedFileId;
+                if (onFileIdCached) {
+                    onFileIdCached(movie.id, obtainedFileId);
+                }
+            }
+            return;
+        }
+
+        messenger.sendMessageWithKeyboard(chatId, caption, keyboard);
+        return;
+    }
+
+    messenger.sendMessageWithKeyboard(chatId, caption, keyboard);
 }
 
 } // namespace bot

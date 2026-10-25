@@ -37,7 +37,10 @@ add_library(movie_rec_core STATIC
     src/repository/SQLiteUserRepository.cpp
     src/recommendation/PopularityRecommendationStrategy.cpp
     src/recommendation/ContentBasedRecommendationStrategy.cpp
+    src/recommendation/CollaborativeFilteringStrategy.cpp
+    src/recommendation/HybridRecommendationStrategy.cpp
     src/recommendation/RecommendationService.cpp
+    src/analytics/MetricsCollector.cpp
 )
 
 target_include_directories(movie_rec_core PUBLIC
@@ -98,6 +101,9 @@ add_executable(movie_rec_tests
     tests/test_keyboard_factory.cpp
     tests/test_command_dispatcher.cpp
     tests/test_movie_card.cpp
+    tests/test_performance_optimizations.cpp
+    tests/test_collaborative_hybrid_metrics.cpp
+    tests/test_coverage_expansion.cpp
 )
 
 target_link_libraries(movie_rec_tests PRIVATE

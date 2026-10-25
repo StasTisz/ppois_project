@@ -1,5 +1,6 @@
 #include "bot/states/GenreSelectionState.h"
 #include "bot/KeyboardFactory.h"
+#include "core/GenreMask.h"
 
 #include <sstream>
 
@@ -42,6 +43,17 @@ void GenreSelectionState::handleMessage(IDialogStateContext& ctx, UserSession& s
 
     // Если передан текст названия жанра
     if (!msg.text.empty() && msg.text[0] != '/') {
+        core::GenreBit bit = core::stringToGenreBit(msg.text);
+        if (bit == core::GenreBit::Unknown) {
+            if (messenger) {
+                messenger->sendMessage(session.chatId,
+                    "⚠️ Не удалось распознать жанр: \"" + msg.text + "\".\n"
+                    "Пожалуйста, используйте кнопки меню ниже для выбора жанров.");
+            }
+            sendStatusMessage(ctx, session);
+            return;
+        }
+
         bool added = session.toggleGenre(msg.text);
         std::string notice = added
             ? ("✅ Жанр '" + msg.text + "' добавлен в предпочтения.\n")

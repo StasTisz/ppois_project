@@ -181,4 +181,47 @@ bool SQLiteUserRepository::setFavoriteGenres(int64_t userId, const std::vector<s
     return true;
 }
 
+
+std::vector<core::Rating> SQLiteUserRepository::getAllRatings() {
+    std::vector<core::Rating> ratings;
+    if (!db_) return ratings;
+
+    const char* sql = "SELECT id, user_id, movie_id, score, timestamp FROM ratings ORDER BY timestamp ASC;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        return ratings;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        core::Rating r;
+        r.id = sqlite3_column_int64(stmt, 0);
+        r.userId = sqlite3_column_int64(stmt, 1);
+        r.movieId = sqlite3_column_int64(stmt, 2);
+        r.score = sqlite3_column_int(stmt, 3);
+        r.timestamp = sqlite3_column_int64(stmt, 4);
+        ratings.push_back(r);
+    }
+
+    sqlite3_finalize(stmt);
+    return ratings;
+}
+
+std::vector<int64_t> SQLiteUserRepository::getAllUserIds() {
+    std::vector<int64_t> userIds;
+    if (!db_) return userIds;
+
+    const char* sql = "SELECT telegram_id FROM users;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        return userIds;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        userIds.push_back(sqlite3_column_int64(stmt, 0));
+    }
+
+    sqlite3_finalize(stmt);
+    return userIds;
+}
+
 } // namespace repository
