@@ -6,6 +6,7 @@
 #include "bot/states/GenreSelectionState.h"
 #include "bot/states/RatingState.h"
 
+#include <ctime>
 #include <utility>
 
 /**
@@ -17,6 +18,18 @@ namespace bot {
 
 BotStateMachine::BotStateMachine(std::shared_ptr<IBotMessenger> messenger)
     : messenger_(std::move(messenger)),
+      commandDispatcher_(std::make_unique<CommandDispatcher>(*this, messenger_)) {
+    registerDefaultStates();
+    initFallbackMovies();
+}
+
+BotStateMachine::BotStateMachine(
+    std::shared_ptr<IBotMessenger> messenger,
+    std::shared_ptr<recommendation::RecommendationService> recService,
+    std::shared_ptr<repository::IUserRepository> userRepo)
+    : messenger_(std::move(messenger)),
+      recService_(std::move(recService)),
+      userRepo_(std::move(userRepo)),
       commandDispatcher_(std::make_unique<CommandDispatcher>(*this, messenger_)) {
     registerDefaultStates();
     initFallbackMovies();
@@ -75,6 +88,13 @@ void BotStateMachine::initFallbackMovies() {
     fallbackMovies_ = {m1, m2, m3, m4};
 }
 
+void BotStateMachine::setRecommendationService(
+    std::shared_ptr<recommendation::RecommendationService> recService,
+    std::shared_ptr<repository::IUserRepository> userRepo) {
+    recService_ = std::move(recService);
+    userRepo_ = std::move(userRepo);
+}
+
 void BotStateMachine::registerState(std::shared_ptr<IDialogState> state) {
     if (state) {
         states_[state->getStateType()] = std::move(state);
@@ -99,6 +119,29 @@ UserSession& BotStateMachine::getSession(int64_t userId, int64_t chatId, const s
     newSession.username = username;
     newSession.state = BotState::Idle;
 
+    // Обеспечение согласованности с базой данных SQLite
+    if (userRepo_) {
+        auto existingUser = userRepo_->getById(userId);
+        if (!existingUser.has_value()) {
+            int64_t nowSec = static_cast<int64_t>(std::time(nullptr));
+            userRepo_->saveUser(core::User{userId, username, static_cast<int>(BotState::Idle), nowSec});
+        } else {
+            newSession.state = static_cast<BotState>(existingUser->stateId);
+        }
+    }
+
+    // Подгрузка сохраненных жанров и оценок из RecommendationService / SQLite
+    if (recService_) {
+        auto savedGenres = recService_->getFavoriteGenres(userId);
+        if (!savedGenres.empty()) {
+            newSession.selectedGenres = std::move(savedGenres);
+        }
+        auto ratings = recService_->getUserRatings(userId);
+        for (const auto& r : ratings) {
+            newSession.movieRatings[r.movieId] = r.score;
+        }
+    }
+
     auto [insertedIt, _] = sessions_.emplace(userId, std::move(newSession));
     return insertedIt->second;
 }
@@ -106,6 +149,11 @@ UserSession& BotStateMachine::getSession(int64_t userId, int64_t chatId, const s
 void BotStateMachine::transitionTo(int64_t userId, BotState newState) {
     auto& session = getSession(userId);
     session.state = newState;
+
+    if (userRepo_) {
+        int64_t nowSec = static_cast<int64_t>(std::time(nullptr));
+        userRepo_->saveUser(core::User{session.userId, session.username, static_cast<int>(newState), nowSec});
+    }
 
     auto it = states_.find(newState);
     if (it != states_.end() && it->second) {
@@ -117,6 +165,42 @@ std::shared_ptr<IBotMessenger> BotStateMachine::getMessenger() const {
     return messenger_;
 }
 
+void BotStateMachine::saveUserGenres(int64_t userId, const std::vector<std::string>& genres) {
+    auto& session = getSession(userId);
+    session.selectedGenres = genres;
+    session.skippedMovieIds.clear();
+
+    if (userRepo_) {
+        auto existing = userRepo_->getById(userId);
+        if (!existing.has_value()) {
+            int64_t nowSec = static_cast<int64_t>(std::time(nullptr));
+            userRepo_->saveUser(core::User{session.userId, session.username, static_cast<int>(session.state), nowSec});
+        }
+    }
+
+    if (recService_) {
+        recService_->setFavoriteGenres(userId, genres);
+    }
+}
+
+void BotStateMachine::recordMovieRating(int64_t userId, int64_t movieId, int score) {
+    auto& session = getSession(userId);
+    session.movieRatings[movieId] = score;
+    session.skippedMovieIds.erase(movieId);
+
+    if (userRepo_) {
+        auto existing = userRepo_->getById(userId);
+        if (!existing.has_value()) {
+            int64_t nowSec = static_cast<int64_t>(std::time(nullptr));
+            userRepo_->saveUser(core::User{session.userId, session.username, static_cast<int>(session.state), nowSec});
+        }
+    }
+
+    if (recService_) {
+        recService_->rateMovie(userId, movieId, score);
+    }
+}
+
 std::optional<core::Movie> BotStateMachine::fetchNextMovie(int64_t userId) {
     if (movieProvider_) {
         return movieProvider_(userId);
@@ -124,10 +208,38 @@ std::optional<core::Movie> BotStateMachine::fetchNextMovie(int64_t userId) {
 
     auto& session = getSession(userId);
 
-    // Сначала ищем неоцененный фильм с совпадением по любимым жанрам
+    // Если подключен RecommendationService, запрашиваем рекомендации из ядра
+    if (recService_) {
+        // Синхронизируем жанры, если они выбраны в сессии
+        auto savedInRec = recService_->getFavoriteGenres(userId);
+        if (savedInRec.empty() && !session.selectedGenres.empty()) {
+            recService_->setFavoriteGenres(userId, session.selectedGenres);
+        }
+
+        auto candidates = recService_->getRecommendations(userId, 20);
+        for (const auto& movie : candidates) {
+            if (!session.isSkipped(movie.id) && session.movieRatings.find(movie.id) == session.movieRatings.end()) {
+                return movie;
+            }
+        }
+
+        // Если все кандидаты были пропущены пользователем, сбрасываем фильтр пропусков
+        if (!candidates.empty()) {
+            session.skippedMovieIds.clear();
+            for (const auto& movie : candidates) {
+                if (session.movieRatings.find(movie.id) == session.movieRatings.end()) {
+                    return movie;
+                }
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    // Автономный режим с fallback-списком фильмов
     if (!session.selectedGenres.empty()) {
         for (const auto& movie : fallbackMovies_) {
-            if (session.movieRatings.find(movie.id) != session.movieRatings.end()) {
+            if (session.movieRatings.find(movie.id) != session.movieRatings.end() || session.isSkipped(movie.id)) {
                 continue;
             }
             for (const auto& g : movie.genres) {
@@ -138,7 +250,14 @@ std::optional<core::Movie> BotStateMachine::fetchNextMovie(int64_t userId) {
         }
     }
 
-    // Если точных совпадений по жанрам нет — берем любой первый неоцененный фильм
+    for (const auto& movie : fallbackMovies_) {
+        if (session.movieRatings.find(movie.id) == session.movieRatings.end() && !session.isSkipped(movie.id)) {
+            return movie;
+        }
+    }
+
+    // Если все не оцененные фильмы в fallback были пропущены — очищаем пропуски и повторяем
+    session.skippedMovieIds.clear();
     for (const auto& movie : fallbackMovies_) {
         if (session.movieRatings.find(movie.id) == session.movieRatings.end()) {
             return movie;
@@ -149,12 +268,33 @@ std::optional<core::Movie> BotStateMachine::fetchNextMovie(int64_t userId) {
 }
 
 std::optional<core::Movie> BotStateMachine::getMovieById(int64_t movieId) const {
+    if (recService_) {
+        auto details = recService_->getMovieDetails(movieId);
+        if (details.has_value()) {
+            return details;
+        }
+    }
+
     for (const auto& movie : fallbackMovies_) {
         if (movie.id == movieId) {
             return movie;
         }
     }
     return std::nullopt;
+}
+
+std::vector<core::Movie> BotStateMachine::fetchSimilarMovies(int64_t movieId, size_t count) {
+    if (recService_) {
+        return recService_->getSimilarMovies(movieId, count);
+    }
+    return {};
+}
+
+std::string BotStateMachine::getActiveStrategyName(int64_t userId) const {
+    if (recService_) {
+        return recService_->resolveStrategyName(userId);
+    }
+    return "";
 }
 
 CommandDispatcher& BotStateMachine::getCommandDispatcher() {

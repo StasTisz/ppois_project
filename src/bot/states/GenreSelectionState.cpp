@@ -31,6 +31,7 @@ void GenreSelectionState::handleMessage(IDialogStateContext& ctx, UserSession& s
             }
             return;
         }
+        ctx.saveUserGenres(session.userId, session.selectedGenres);
         ctx.transitionTo(session.userId, BotState::BrowsingRecommendations);
         return;
     }
@@ -43,6 +44,7 @@ void GenreSelectionState::handleMessage(IDialogStateContext& ctx, UserSession& s
     // Если передан текст названия жанра
     if (!msg.text.empty() && msg.text[0] != '/') {
         bool added = session.toggleGenre(msg.text);
+        ctx.saveUserGenres(session.userId, session.selectedGenres);
         std::string notice = added
             ? ("✅ Жанр '" + msg.text + "' добавлен в предпочтения.\n")
             : ("❌ Жанр '" + msg.text + "' удален из предпочтений.\n");
@@ -58,6 +60,7 @@ void GenreSelectionState::handleCallback(IDialogStateContext& ctx, UserSession& 
     if (cb.data.rfind(togglePrefix, 0) == 0) {
         std::string genre = cb.data.substr(togglePrefix.size());
         bool added = session.toggleGenre(genre);
+        ctx.saveUserGenres(session.userId, session.selectedGenres);
         std::string notice = added
             ? ("✅ Жанр '" + genre + "' добавлен в предпочтения.\n")
             : ("❌ Жанр '" + genre + "' удален из предпочтений.\n");
@@ -73,6 +76,7 @@ void GenreSelectionState::handleCallback(IDialogStateContext& ctx, UserSession& 
             }
             return;
         }
+        ctx.saveUserGenres(session.userId, session.selectedGenres);
         ctx.transitionTo(session.userId, BotState::BrowsingRecommendations);
         return;
     }
@@ -105,8 +109,8 @@ void GenreSelectionState::sendStatusMessage(IDialogStateContext& ctx, const User
         }
         oss << "\n";
     }
+    oss << "Нажмите на жанр для добавления/удаления или «✅ Подтвердить выбор»:";
 
-    oss << "\nОтправьте название жанра текстом или выберите кнопками ниже, затем нажмите /done или «✔️ Готово» (/cancel для отмены):";
     messenger->sendMessageWithKeyboard(
         session.chatId,
         oss.str(),

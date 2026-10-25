@@ -7,6 +7,8 @@
 #include "bot/IDialogState.h"
 #include "bot/UserSession.h"
 #include "core/Movie.h"
+#include "recommendation/RecommendationService.h"
+#include "repository/IUserRepository.h"
 
 #include <functional>
 #include <memory>
@@ -24,11 +26,12 @@ namespace bot {
 
 /**
  * @class BotStateMachine
- * @brief Управляет сессиями пользователей, регистрацией состояний и переключениями FSM.
+ * @brief Управляет сессиями пользователей, регистрацией состояний, переключениями FSM
+ * и интеграцией с сервисом рекомендаций и базой данных SQLite.
  *
  * Реализует `IDialogStateContext`, хранит изолированные сессии каждого пользователя,
- * диспетчеризирует текстовые сообщения и callback-запросы в активные состояния,
- * а также предоставляет временный пул рекомендаций до интеграции с базой данных.
+ * синхронизирует состояние пользователей и их оценки с базой данных SQLite,
+ * диспетчеризирует текстовые сообщения и callback-запросы в активные состояния FSM.
  */
 class BotStateMachine : public IDialogStateContext {
 public:
@@ -42,6 +45,17 @@ public:
     explicit BotStateMachine(std::shared_ptr<IBotMessenger> messenger);
 
     /**
+     * @brief Конструктор с подключением сервиса рекомендаций и репозитория пользователей.
+     * @param messenger Клиент отправки сообщений Telegram.
+     * @param recService Сервис-фасад рекомендаций фильмов.
+     * @param userRepo Репозиторий пользователей для синхронизации состояний диалога в SQLite.
+     */
+    BotStateMachine(
+        std::shared_ptr<IBotMessenger> messenger,
+        std::shared_ptr<recommendation::RecommendationService> recService,
+        std::shared_ptr<repository::IUserRepository> userRepo = nullptr);
+
+    /**
      * @brief Деструктор автомата состояний.
      */
     ~BotStateMachine() override;
@@ -53,7 +67,7 @@ public:
     void registerState(std::shared_ptr<IDialogState> state);
 
     /**
-     * @brief Получает существующую сессию пользователя или создает новую.
+     * @brief Получает существующую сессию пользователя или создает новую с загрузкой профиля из БД.
      * @param userId Идентификатор пользователя Telegram.
      * @param chatId Идентификатор чата (применяется при создании новой сессии).
      * @param username Никнейм пользователя.
@@ -75,18 +89,48 @@ public:
     [[nodiscard]] std::shared_ptr<IBotMessenger> getMessenger() const override;
 
     /**
-     * @brief Получает следующий фильм для показа пользователю (из кастомного провайдера либо fallback-пула).
+     * @brief Получает следующий фильм для показа пользователю (из кастомного провайдера, сервиса рекомендаций либо fallback-пула).
      * @param userId Идентификатор пользователя Telegram.
      * @return Объект Movie либо std::nullopt.
      */
     std::optional<core::Movie> fetchNextMovie(int64_t userId) override;
 
     /**
-     * @brief Находит фильм по его идентификатору в каталоге фильмов.
+     * @brief Находит фильм по его идентификатору в RecommendationService или fallback-каталоге.
      * @param movieId Идентификатор фильма.
      * @return Объект Movie либо std::nullopt.
      */
     [[nodiscard]] std::optional<core::Movie> getMovieById(int64_t movieId) const override;
+
+    /**
+     * @brief Сохраняет выбранные пользователем жанры в сессии и передает их в RecommendationService.
+     * @param userId Идентификатор пользователя Telegram.
+     * @param genres Список выбранных жанров.
+     */
+    void saveUserGenres(int64_t userId, const std::vector<std::string>& genres) override;
+
+    /**
+     * @brief Записывает оценку фильма в сессии и сохраняет в БД через RecommendationService.
+     * @param userId Идентификатор пользователя Telegram.
+     * @param movieId Идентификатор фильма.
+     * @param score Оценка от 1 до 10.
+     */
+    void recordMovieRating(int64_t userId, int64_t movieId, int score) override;
+
+    /**
+     * @brief Возвращает похожие фильмы из RecommendationService.
+     * @param movieId Идентификатор фильма.
+     * @param count Количество фильмов.
+     * @return Список похожих фильмов.
+     */
+    std::vector<core::Movie> fetchSimilarMovies(int64_t movieId, size_t count = 3) override;
+
+    /**
+     * @brief Возвращает название текущей стратегии рекомендаций.
+     * @param userId Идентификатор пользователя Telegram.
+     * @return Название стратегии.
+     */
+    [[nodiscard]] std::string getActiveStrategyName(int64_t userId) const override;
 
     /**
      * @brief Предоставляет доступ к диспетчеру глобальных команд.
@@ -95,14 +139,23 @@ public:
     [[nodiscard]] CommandDispatcher& getCommandDispatcher();
 
     /**
-     * @brief Устанавливает пользовательский провайдер фильмов (для тестов и интеграции с сервисом рекомендаций).
+     * @brief Устанавливает сервис рекомендаций и репозиторий пользователей.
+     * @param recService Сервис рекомендаций.
+     * @param userRepo Репозиторий пользователей.
+     */
+    void setRecommendationService(
+        std::shared_ptr<recommendation::RecommendationService> recService,
+        std::shared_ptr<repository::IUserRepository> userRepo = nullptr);
+
+    /**
+     * @brief Устанавливает пользовательский провайдер фильмов (для тестов и моков).
      * @param provider Функция-поставщик фильмов.
      */
     void setMovieProvider(MovieProvider provider);
 
     /**
      * @brief Обрабатывает входящее текстовое сообщение.
-     * При глобальной команде `/start` переводит в BotState::SelectingGenres, иначе делегирует текущему состоянию.
+     * При глобальных командах диспетчера обрабатывает их, иначе делегирует текущему состоянию.
      * @param msg Входящее текстовое сообщение.
      */
     void processMessage(const IncomingMessage& msg);
@@ -126,11 +179,13 @@ private:
     void registerDefaultStates();
 
     /**
-     * @brief Заполняет демо-список фильмов для автономной работы до подключения SQLite.
+     * @brief Заполняет демо-список фильмов для автономной работы без подключенной БД.
      */
     void initFallbackMovies();
 
     std::shared_ptr<IBotMessenger> messenger_;
+    std::shared_ptr<recommendation::RecommendationService> recService_;
+    std::shared_ptr<repository::IUserRepository> userRepo_;
     std::unique_ptr<CommandDispatcher> commandDispatcher_;
     std::unordered_map<BotState, std::shared_ptr<IDialogState>> states_;
     std::unordered_map<int64_t, UserSession> sessions_;

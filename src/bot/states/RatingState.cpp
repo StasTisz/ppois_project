@@ -53,7 +53,7 @@ void RatingState::handleMessage(IDialogStateContext& ctx, UserSession& session, 
 
     if (parsedSuccessfully) {
         if (session.currentMovie) {
-            session.movieRatings[session.currentMovie->id] = score;
+            ctx.recordMovieRating(session.userId, session.currentMovie->id, score);
         }
         if (messenger) {
             messenger->sendMessage(session.chatId,
@@ -86,7 +86,7 @@ void RatingState::handleCallback(IDialogStateContext& ctx, UserSession& session,
             int score = std::stoi(payload);
             if (score >= 1 && score <= 10) {
                 if (session.currentMovie) {
-                    session.movieRatings[session.currentMovie->id] = score;
+                    ctx.recordMovieRating(session.userId, session.currentMovie->id, score);
                 }
                 if (auto messenger = ctx.getMessenger()) {
                     messenger->sendMessage(session.chatId,

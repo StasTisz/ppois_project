@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 /**
@@ -22,7 +23,8 @@ namespace bot {
  * @brief Хранилище контекста диалога и пользовательских данных текущей сессии.
  *
  * Содержит идентификаторы пользователя и чата, текущее состояние FSM,
- * выбранные жанры, текущий фильм и историю выставленных в рамках сессии оценок.
+ * выбранные жанры, текущий фильм, историю выставленных в рамках сессии оценок
+ * и множество пропущенных фильмов.
  */
 struct UserSession {
     /// Уникальный идентификатор пользователя Telegram.
@@ -46,6 +48,9 @@ struct UserSession {
     /// Словарь выставленных в сессии оценок: ID фильма -> оценка (1-10).
     std::unordered_map<int64_t, int> movieRatings;
 
+    /// Множество ID фильмов, пропущенных кнопкой «Следующий» без оценки.
+    std::unordered_set<int64_t> skippedMovieIds;
+
     /**
      * @brief Проверяет, выбран ли указанный жанр в текущей сессии.
      * @param genre Название жанра.
@@ -68,6 +73,23 @@ struct UserSession {
         }
         selectedGenres.push_back(genre);
         return true;
+    }
+
+    /**
+     * @brief Отмечает фильм как пропущенный пользователем.
+     * @param movieId Идентификатор пропущенного фильма.
+     */
+    void markSkipped(int64_t movieId) {
+        skippedMovieIds.insert(movieId);
+    }
+
+    /**
+     * @brief Проверяет, был ли фильм пропущен пользователем.
+     * @param movieId Идентификатор фильма.
+     * @return true, если фильм находится в списке пропущенных.
+     */
+    [[nodiscard]] bool isSkipped(int64_t movieId) const {
+        return skippedMovieIds.find(movieId) != skippedMovieIds.end();
     }
 };
 

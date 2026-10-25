@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 /**
  * @file IDialogState.h
@@ -22,8 +23,8 @@ namespace bot {
  * @class IDialogStateContext
  * @brief Контракт контекста диалога, предоставляющий доступ к сессиям, мессенджеру и переходам состояний.
  *
- * Передается в обработчики состояний для выполнения переходов, отправки сообщений
- * и получения рекомендаций фильмов.
+ * Передается в обработчики состояний для выполнения переходов, отправки сообщений,
+ * сохранения предпочтений и получения рекомендаций фильмов из сервиса рекомендаций.
  */
 class IDialogStateContext {
 public:
@@ -67,6 +68,50 @@ public:
         (void)movieId;
         return std::nullopt;
     }
+
+    /**
+     * @brief Сохраняет выбранные пользователем жанры в ядро/БД.
+     * @param userId Идентификатор пользователя Telegram.
+     * @param genres Список названий жанров.
+     */
+    virtual void saveUserGenres(int64_t userId, const std::vector<std::string>& genres) {
+        (void)userId;
+        (void)genres;
+    }
+
+    /**
+     * @brief Сохраняет оценку фильма пользователем в ядро/БД.
+     * @param userId Идентификатор пользователя Telegram.
+     * @param movieId Идентификатор фильма.
+     * @param score Оценка от 1 до 10.
+     */
+    virtual void recordMovieRating(int64_t userId, int64_t movieId, int score) {
+        (void)userId;
+        (void)movieId;
+        (void)score;
+    }
+
+    /**
+     * @brief Возвращает список похожих фильмов для указанного фильма.
+     * @param movieId Идентификатор исходного фильма.
+     * @param count Максимальное количество похожих фильмов.
+     * @return Вектор похожих фильмов.
+     */
+    virtual std::vector<core::Movie> fetchSimilarMovies(int64_t movieId, size_t count = 3) {
+        (void)movieId;
+        (void)count;
+        return {};
+    }
+
+    /**
+     * @brief Возвращает название текущей активной стратегии рекомендаций для пользователя.
+     * @param userId Идентификатор пользователя Telegram.
+     * @return Название стратегии либо пустая строка.
+     */
+    [[nodiscard]] virtual std::string getActiveStrategyName(int64_t userId) const {
+        (void)userId;
+        return "";
+    }
 };
 
 /**
@@ -102,7 +147,7 @@ public:
     virtual void handleMessage(IDialogStateContext& ctx, UserSession& session, const IncomingMessage& msg) = 0;
 
     /**
-     * @brief Обрабатывает входящий callback-запрос от нажатой inline-кнопки.
+     * @brief Обрабатывает входящий callback-запрос inline-кнопки в текущем состоянии.
      * @param ctx Контекст конечного автомата.
      * @param session Сессия текущего пользователя.
      * @param cb DTO входящего callback-запроса.

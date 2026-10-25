@@ -26,6 +26,9 @@ void BrowsingRecommendationsState::handleMessage(IDialogStateContext& ctx, UserS
     }
 
     if (msg.text == "/next") {
+        if (session.currentMovie) {
+            session.markSkipped(session.currentMovie->id);
+        }
         showNextMovie(ctx, session);
         return;
     }
@@ -40,16 +43,45 @@ void BrowsingRecommendationsState::handleMessage(IDialogStateContext& ctx, UserS
         return;
     }
 
+    if (msg.text == "/similar") {
+        if (!session.currentMovie) {
+            if (auto messenger = ctx.getMessenger()) {
+                messenger->sendMessage(session.chatId, "Сейчас не выбран ни один фильм для поиска похожих.");
+            }
+            return;
+        }
+
+        auto similar = ctx.fetchSimilarMovies(session.currentMovie->id, 3);
+        auto messenger = ctx.getMessenger();
+        if (!messenger) return;
+
+        if (similar.empty()) {
+            messenger->sendMessage(session.chatId, "К сожалению, похожих фильмов не найдено.");
+        } else {
+            std::ostringstream oss;
+            oss << "🎬 Фильмы, похожие на «" << session.currentMovie->title << "»:\n\n";
+            for (size_t i = 0; i < similar.size(); ++i) {
+                oss << (i + 1) << ". " << similar[i].title;
+                if (similar[i].year > 0) oss << " (" << similar[i].year << ")";
+                if (!similar[i].director.empty()) oss << " — реж. " << similar[i].director;
+                if (similar[i].ratingAvg > 0.0) oss << " [★ " << similar[i].ratingAvg << "/10]";
+                oss << "\n";
+            }
+            messenger->sendMessage(session.chatId, oss.str());
+        }
+        return;
+    }
+
     if (auto messenger = ctx.getMessenger()) {
         messenger->sendMessage(session.chatId,
-            "Используйте /rate для оценки фильма, /next для следующего, /genres для смены жанров или /menu для выхода.");
+            "Используйте /rate для оценки фильма, /next для следующего, /similar для похожих, /genres для смены жанров или /menu для выхода.");
     }
 }
 
 void BrowsingRecommendationsState::handleCallback(IDialogStateContext& ctx, UserSession& session, const IncomingCallback& cb) {
     if (cb.data == "rec:like") {
         if (session.currentMovie) {
-            session.movieRatings[session.currentMovie->id] = 10;
+            ctx.recordMovieRating(session.userId, session.currentMovie->id, 10);
             if (auto messenger = ctx.getMessenger()) {
                 messenger->sendMessage(session.chatId, "👍 Вы отметили фильм как понравившийся (10/10)!");
             }
@@ -60,7 +92,7 @@ void BrowsingRecommendationsState::handleCallback(IDialogStateContext& ctx, User
 
     if (cb.data == "rec:dislike") {
         if (session.currentMovie) {
-            session.movieRatings[session.currentMovie->id] = 1;
+            ctx.recordMovieRating(session.userId, session.currentMovie->id, 1);
             if (auto messenger = ctx.getMessenger()) {
                 messenger->sendMessage(session.chatId, "👎 Вы отметили фильм как непонравившийся (1/10).");
             }
@@ -70,6 +102,9 @@ void BrowsingRecommendationsState::handleCallback(IDialogStateContext& ctx, User
     }
 
     if (cb.data == "rec:next") {
+        if (session.currentMovie) {
+            session.markSkipped(session.currentMovie->id);
+        }
         showNextMovie(ctx, session);
         return;
     }
@@ -81,6 +116,36 @@ void BrowsingRecommendationsState::handleCallback(IDialogStateContext& ctx, User
 
     if (cb.data == "rec:menu") {
         ctx.transitionTo(session.userId, BotState::Idle);
+        return;
+    }
+
+    if (cb.data == "rec:similar") {
+        if (!session.currentMovie) {
+            if (auto messenger = ctx.getMessenger()) {
+                messenger->sendMessage(session.chatId, "Сейчас не выбран ни один фильм для поиска похожих.");
+            }
+            return;
+        }
+
+        auto similar = ctx.fetchSimilarMovies(session.currentMovie->id, 3);
+        auto messenger = ctx.getMessenger();
+        if (!messenger) return;
+
+        if (similar.empty()) {
+            messenger->sendMessage(session.chatId, "К сожалению, похожих фильмов не найдено.");
+        } else {
+            std::ostringstream oss;
+            oss << "🎬 Фильмы, похожие на «" << session.currentMovie->title << "»:\n\n";
+            for (size_t i = 0; i < similar.size(); ++i) {
+                oss << (i + 1) << ". " << similar[i].title;
+                if (similar[i].year > 0) oss << " (" << similar[i].year << ")";
+                if (!similar[i].director.empty()) oss << " — реж. " << similar[i].director;
+                if (similar[i].ratingAvg > 0.0) oss << " [★ " << similar[i].ratingAvg << "/10]";
+                oss << "\n";
+            }
+            messenger->sendMessage(session.chatId, oss.str());
+        }
+        return;
     }
 }
 
@@ -100,15 +165,14 @@ void BrowsingRecommendationsState::showNextMovie(IDialogStateContext& ctx, UserS
         return;
     }
 
-    session.currentMovie = *nextMovie;
+    session.currentMovie = nextMovie;
 
-    if (messenger) {
-        MovieCardFormatter::sendMovieCard(
-            *messenger,
-            session.chatId,
-            *nextMovie,
-            KeyboardFactory::createMovieReactionKeyboard());
+    if (!messenger) {
+        return;
     }
+
+    InlineKeyboard keyboard = KeyboardFactory::createMovieReactionKeyboard();
+    MovieCardFormatter::sendMovieCard(*messenger, session.chatId, *nextMovie, keyboard);
 }
 
 } // namespace bot
