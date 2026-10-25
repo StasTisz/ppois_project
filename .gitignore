@@ -28,3 +28,10 @@ lib/
 
 # Environment files
 .env
+
+# Repomix output and text dumps (excluding CMakeLists.txt)
+*.txt
+!CMakeLists.txt
+repomix-output.txt
+repomix-output.xml
+repomix-output.md

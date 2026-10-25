@@ -22,9 +22,15 @@ else()
 endif()
 
 # tgbot-cpp
-find_package(tgbot-cpp CONFIG REQUIRED)
+find_package(TgBot CONFIG QUIET)
+if(TARGET TgBot::TgBot)
+    set(TGBOT_TARGET TgBot::TgBot)
+else()
+    find_package(tgbot-cpp CONFIG REQUIRED)
+    set(TGBOT_TARGET tgbot-cpp::tgbot-cpp)
+endif()
 
-# Core domain library
+# Core domain & backend library
 add_library(movie_rec_core STATIC
     src/repository/DatabaseManager.cpp
     src/repository/SQLiteMovieRepository.cpp
@@ -42,7 +48,32 @@ target_include_directories(movie_rec_core PUBLIC
 target_link_libraries(movie_rec_core PUBLIC
     ${SQLITE3_TARGET}
     nlohmann_json::nlohmann_json
-    tgbot-cpp::tgbot-cpp
+    ${TGBOT_TARGET}
+)
+
+# Bot implementation library
+add_library(movie_rec_bot_lib STATIC
+    src/bot/BotEventRouter.cpp
+    src/bot/TelegramBotApp.cpp
+    src/bot/BotStateMachine.cpp
+    src/bot/KeyboardFactory.cpp
+    src/bot/CommandDispatcher.cpp
+    src/bot/NetworkErrorHandler.cpp
+    src/bot/MovieCardFormatter.cpp
+    src/bot/states/DefaultState.cpp
+    src/bot/states/GenreSelectionState.cpp
+    src/bot/states/BrowsingRecommendationsState.cpp
+    src/bot/states/RatingState.cpp
+)
+
+target_include_directories(movie_rec_bot_lib PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(movie_rec_bot_lib PUBLIC
+    movie_rec_core
+    ${TGBOT_TARGET}
 )
 
 # Main Telegram Bot Executable
@@ -51,6 +82,7 @@ add_executable(movie_rec_bot
 )
 
 target_link_libraries(movie_rec_bot PRIVATE
+    movie_rec_bot_lib
     movie_rec_core
 )
 
@@ -61,9 +93,15 @@ add_executable(movie_rec_tests
     tests/test_recommendation.cpp
     tests/test_service.cpp
     tests/test_pipeline.cpp
+    tests/test_bot_infra.cpp
+    tests/test_bot_fsm.cpp
+    tests/test_keyboard_factory.cpp
+    tests/test_command_dispatcher.cpp
+    tests/test_movie_card.cpp
 )
 
 target_link_libraries(movie_rec_tests PRIVATE
+    movie_rec_bot_lib
     movie_rec_core
     GTest::gtest
     GTest::gtest_main
