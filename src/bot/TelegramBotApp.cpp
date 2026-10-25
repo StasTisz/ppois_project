@@ -150,6 +150,25 @@ TelegramBotApp::TelegramBotApp(const BotConfig& config)
 }
 
 /**
+ * @brief Конструктор приложения с сервисом рекомендаций и репозиторием пользователей.
+ * @param config Настройки приложения и токен Telegram-бота.
+ * @param recService Сервис-фасад рекомендаций фильмов.
+ * @param userRepo Репозиторий пользователей для синхронизации в SQLite.
+ */
+TelegramBotApp::TelegramBotApp(
+    const BotConfig& config,
+    std::shared_ptr<recommendation::RecommendationService> recService,
+    std::shared_ptr<repository::IUserRepository> userRepo)
+    : config_(config),
+      bot_(config.token),
+      messenger_(std::make_shared<TgBotMessenger>(bot_)),
+      router_(std::make_shared<BotEventRouter>(messenger_)),
+      stateMachine_(std::make_shared<BotStateMachine>(messenger_, std::move(recService), std::move(userRepo))) {
+    stateMachine_->attachToRouter(*router_);
+    setupCallbacks();
+}
+
+/**
  * @brief Конструктор хоста бота по токену (обратная совместимость).
  * @param token Токен Telegram-бота.
  */

@@ -57,6 +57,7 @@ void DefaultState::handleMessage(IDialogStateContext& ctx, UserSession& session,
                 "/recommend — Начать подбор рекомендаций на основе ваших предпочтений\n"
                 "/genres — Изменить список любимых жанров\n"
                 "/history — История просмотренных и оцененных фильмов\n"
+                "/similar — Поиск похожих фильмов во время просмотра\n"
                 "/help — Справка по командам\n"
                 "/menu — Вернуться в главное меню",
                 KeyboardFactory::createMainMenuKeyboard());
@@ -96,10 +97,17 @@ void DefaultState::handleCallback(IDialogStateContext& ctx, UserSession& session
         if (!messenger) {
             return;
         }
+
+        std::string strategy = ctx.getActiveStrategyName(session.userId);
+
         if (session.movieRatings.empty()) {
+            std::string text = "Ваша история просмотров и оценок пока пуста.";
+            if (!strategy.empty()) {
+                text += "\n🎯 Активный режим рекомендаций: " + strategy;
+            }
             messenger->sendMessageWithKeyboard(
                 session.chatId,
-                "Ваша история просмотров и оценок пока пуста.",
+                text,
                 KeyboardFactory::createMainMenuKeyboard());
         } else {
             std::ostringstream oss;
@@ -108,6 +116,9 @@ void DefaultState::handleCallback(IDialogStateContext& ctx, UserSession& session
                 auto movieOpt = ctx.getMovieById(movieId);
                 std::string title = movieOpt ? movieOpt->title : ("Фильм #" + std::to_string(movieId));
                 oss << "• " << title << " — " << score << "/10\n";
+            }
+            if (!strategy.empty()) {
+                oss << "\n🎯 Активный режим рекомендаций: " << strategy << "\n";
             }
             oss << "\nИспользуйте меню ниже для дальнейших действий:";
             messenger->sendMessageWithKeyboard(
@@ -126,6 +137,7 @@ void DefaultState::handleCallback(IDialogStateContext& ctx, UserSession& session
                 "• /recommend — Подбор персональных рекомендаций фильмов\n"
                 "• /genres — Настройка и смена списка любимых жанров\n"
                 "• /history — Просмотр истории оцененных фильмов\n"
+                "• /similar — Поиск похожих фильмов во время просмотра\n"
                 "• /help — Справка по всем возможностям бота\n\n"
                 "Используйте кнопки меню ниже для быстрой навигации:";
             messenger->sendMessageWithKeyboard(

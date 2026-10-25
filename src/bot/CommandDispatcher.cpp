@@ -96,10 +96,16 @@ void CommandDispatcher::handleHistory(const UserSession& session) {
         return;
     }
 
+    std::string strategy = context_.getActiveStrategyName(session.userId);
+
     if (session.movieRatings.empty()) {
+        std::string text = "Ваша история просмотров и оценок пока пуста.";
+        if (!strategy.empty()) {
+            text += "\n🎯 Активный режим рекомендаций: " + strategy;
+        }
         messenger_->sendMessageWithKeyboard(
             session.chatId,
-            "Ваша история просмотров и оценок пока пуста.",
+            text,
             KeyboardFactory::createMainMenuKeyboard());
         return;
     }
@@ -111,6 +117,11 @@ void CommandDispatcher::handleHistory(const UserSession& session) {
         std::string title = movieOpt ? movieOpt->title : ("Фильм #" + std::to_string(movieId));
         oss << "• " << title << " — " << score << "/10\n";
     }
+
+    if (!strategy.empty()) {
+        oss << "\n🎯 Активный режим рекомендаций: " << strategy << "\n";
+    }
+
     oss << "\nИспользуйте меню ниже для дальнейших действий:";
     messenger_->sendMessageWithKeyboard(
         session.chatId,
@@ -129,6 +140,7 @@ void CommandDispatcher::handleHelp(const UserSession& session) {
         "• /recommend — Подбор персональных рекомендаций фильмов\n"
         "• /genres — Настройка и смена списка любимых жанров\n"
         "• /history — Просмотр истории оцененных фильмов\n"
+        "• /similar — Поиск похожих фильмов во время просмотра\n"
         "• /help — Справка по всем возможностям бота\n\n"
         "Используйте кнопки меню ниже для быстрой навигации:";
     messenger_->sendMessageWithKeyboard(

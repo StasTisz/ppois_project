@@ -5,6 +5,8 @@
 #include "bot/BotStateMachine.h"
 #include "bot/IBotMessenger.h"
 #include "bot/NetworkErrorHandler.h"
+#include "recommendation/RecommendationService.h"
+#include "repository/IUserRepository.h"
 
 #include <tgbot/tgbot.h>
 #include <atomic>
@@ -112,10 +114,21 @@ public:
     explicit TelegramBotApp(const BotConfig& config);
 
     /**
-     * @brief Конструктор приложения, принимающий токен напрямую (для обратной совместимости).
-     * @param token Токен авторизации бота от @BotFather.
+     * @brief Конструктор приложения по токену (обратная совместимость).
+     * @param token Токен Telegram-бота.
      */
     explicit TelegramBotApp(const std::string& token);
+
+    /**
+     * @brief Конструктор приложения с сервисом рекомендаций и репозиторием пользователей.
+     * @param config Настройки приложения и токен Telegram-бота.
+     * @param recService Сервис-фасад рекомендаций фильмов.
+     * @param userRepo Репозиторий пользователей для синхронизации в SQLite.
+     */
+    TelegramBotApp(
+        const BotConfig& config,
+        std::shared_ptr<recommendation::RecommendationService> recService,
+        std::shared_ptr<repository::IUserRepository> userRepo = nullptr);
 
     /**
      * @brief Деструктор, останавливающий цикл опроса и освобождающий ресурсы.
