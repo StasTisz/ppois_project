@@ -30,15 +30,25 @@ else()
     set(TGBOT_TARGET tgbot-cpp::tgbot-cpp)
 endif()
 
-# Core domain interface library
-add_library(movie_rec_core INTERFACE)
+# Copy data folder to build binary directory for runtime tests
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
-target_include_directories(movie_rec_core INTERFACE
+# Core domain library
+add_library(movie_rec_core STATIC
+    src/repository/DatabaseManager.cpp
+    src/repository/SQLiteMovieRepository.cpp
+    src/repository/SQLiteUserRepository.cpp
+    src/recommendation/PopularityRecommendationStrategy.cpp
+    src/recommendation/ContentBasedRecommendationStrategy.cpp
+    src/recommendation/RecommendationService.cpp
+)
+
+target_include_directories(movie_rec_core PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(movie_rec_core INTERFACE
+target_link_libraries(movie_rec_core PUBLIC
     ${SQLITE3_TARGET}
     nlohmann_json::nlohmann_json
     ${TGBOT_TARGET}
@@ -75,6 +85,10 @@ target_link_libraries(movie_rec_bot PRIVATE
 # Unit Tests Executable
 add_executable(movie_rec_tests
     tests/test_main.cpp
+    tests/test_repository.cpp
+    tests/test_recommendation.cpp
+    tests/test_service.cpp
+    tests/test_pipeline.cpp
     tests/test_bot_infra.cpp
     tests/test_bot_fsm.cpp
     tests/test_keyboard_factory.cpp

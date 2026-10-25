@@ -1,6 +1,12 @@
 #include <iostream>
 #include <string>
+#include <cstdlib>
+#include <memory>
 
+#include "repository/DatabaseManager.h"
+#include "repository/SQLiteMovieRepository.h"
+#include "repository/SQLiteUserRepository.h"
+#include "recommendation/RecommendationService.h"
 #include "bot/BotConfig.h"
 #include "bot/TelegramBotApp.h"
 
@@ -20,7 +26,7 @@
 int main() {
     std::cout << "========================================\n";
     std::cout << " Movie Recommendation Telegram Bot (C++)\n";
-    std::cout << " Bot & Event Infrastructure (Task 2.5) \n";
+    std::cout << " Integration Phase (Core + Bot Layer)   \n";
     std::cout << "========================================\n\n";
 
     bot::BotConfig config = bot::BotConfig::fromEnv();
