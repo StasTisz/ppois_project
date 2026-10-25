@@ -60,12 +60,11 @@ int main() {
 
     bot::BotConfig config = bot::BotConfig::fromEnv();
 
-    // Создаем родительскую директорию для базы данных при её отсутствии
-    namespace fs = std::filesystem;
-    fs::path dbFilePath(config.dbPath);
-    if (dbFilePath.has_parent_path() && !dbFilePath.parent_path().empty()) {
+    // Создаем родительскую директорию для базы данных при её наличии и отсутствии на диске
+    if (std::filesystem::path(config.dbPath).has_parent_path() &&
+        !std::filesystem::path(config.dbPath).parent_path().empty()) {
         std::error_code ec;
-        fs::create_directories(dbFilePath.parent_path(), ec);
+        std::filesystem::create_directories(std::filesystem::path(config.dbPath).parent_path(), ec);
     }
 
     std::cout << "[DB] Инициализация базы данных SQLite: " << config.dbPath << " ...\n";

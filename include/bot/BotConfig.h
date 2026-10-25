@@ -50,7 +50,17 @@ struct BotConfig {
             std::string candidateSeed = prefix + seedJsonPath;
             if (fs::exists(candidateSeed)) {
                 seedJsonPath = candidateSeed;
-                dbPath = prefix + dbPath;
+                if (dbPath == "data/movies.db") {
+                    dbPath = prefix + dbPath;
+                }
+                return;
+            }
+            std::string fallbackSeed = prefix + "data/initial_movies.json";
+            if (fs::exists(fallbackSeed)) {
+                seedJsonPath = fallbackSeed;
+                if (dbPath == "data/movies.db") {
+                    dbPath = prefix + dbPath;
+                }
                 return;
             }
         }
@@ -58,7 +68,8 @@ struct BotConfig {
 
     /**
      * @brief Фабричный метод, считывающий конфигурацию из переменных окружения или файла .env.
-     * Сначала проверяет `BOT_TOKEN`, затем `TELEGRAM_BOT_TOKEN`, затем файл `.env` в текущей и родительских папках.
+     * Проверяет `BOT_TOKEN`, `TELEGRAM_BOT_TOKEN`, `DB_PATH`, `SEED_JSON_PATH`,
+     * а затем файл `.env` в текущей и родительских папках.
      * @return Инициализированный объект BotConfig с разрешенными путями к данным.
      */
     static BotConfig fromEnv() {
@@ -71,58 +82,66 @@ struct BotConfig {
             config.token = tokenEnv;
         }
 
-        // Если переменная окружения не задана, пробуем считать из .env (включая поиск вверх по дереву)
-        if (config.token.empty()) {
-            const std::vector<std::string> envCandidates = {
-                ".env",
-                "../.env",
-                "../../.env",
-                "../../../.env"
-            };
+        const char* dbPathEnv = std::getenv("DB_PATH");
+        if (dbPathEnv && !std::string(dbPathEnv).empty()) {
+            config.dbPath = dbPathEnv;
+        }
 
-            for (const auto& envPath : envCandidates) {
-                if (!std::filesystem::exists(envPath)) {
+        const char* seedJsonPathEnv = std::getenv("SEED_JSON_PATH");
+        if (seedJsonPathEnv && !std::string(seedJsonPathEnv).empty()) {
+            config.seedJsonPath = seedJsonPathEnv;
+        }
+
+        // Поиск .env файла в текущей папке или выше по дереву каталогов
+        const std::vector<std::string> envCandidates = {
+            ".env",
+            "../.env",
+            "../../.env",
+            "../../../.env"
+        };
+
+        for (const auto& envPath : envCandidates) {
+            if (!std::filesystem::exists(envPath)) {
+                continue;
+            }
+            std::ifstream envFile(envPath);
+            if (!envFile.is_open()) {
+                continue;
+            }
+
+            std::string line;
+            while (std::getline(envFile, line)) {
+                while (!line.empty() && (line.front() == ' ' || line.front() == '\t')) {
+                    line.erase(line.begin());
+                }
+                while (!line.empty() && (line.back() == ' ' || line.back() == '\t' || line.back() == '\r')) {
+                    line.pop_back();
+                }
+                if (line.empty() || line[0] == '#') {
                     continue;
                 }
-                std::ifstream envFile(envPath);
-                if (!envFile.is_open()) {
-                    continue;
-                }
 
-                std::string line;
-                while (std::getline(envFile, line)) {
-                    while (!line.empty() && (line.front() == ' ' || line.front() == '\t')) {
-                        line.erase(line.begin());
+                auto pos = line.find('=');
+                if (pos != std::string::npos) {
+                    std::string key = line.substr(0, pos);
+                    std::string val = line.substr(pos + 1);
+                    while (!val.empty() && (val.front() == ' ' || val.front() == '"' || val.front() == '\'')) {
+                        val.erase(val.begin());
                     }
-                    while (!line.empty() && (line.back() == ' ' || line.back() == '\t' || line.back() == '\r')) {
-                        line.pop_back();
-                    }
-                    if (line.empty() || line[0] == '#') {
-                        continue;
+                    while (!val.empty() && (val.back() == ' ' || val.back() == '"' || val.back() == '\'' || val.back() == '\r')) {
+                        val.pop_back();
                     }
 
-                    auto pos = line.find('=');
-                    if (pos != std::string::npos) {
-                        std::string key = line.substr(0, pos);
-                        std::string val = line.substr(pos + 1);
-                        while (!val.empty() && (val.front() == ' ' || val.front() == '"' || val.front() == '\'')) {
-                            val.erase(val.begin());
-                        }
-                        while (!val.empty() && (val.back() == ' ' || val.back() == '"' || val.back() == '\'' || val.back() == '\r')) {
-                            val.pop_back();
-                        }
-
-                        if (key == "BOT_TOKEN" || key == "TELEGRAM_BOT_TOKEN") {
-                            config.token = val;
-                            break;
-                        }
+                    if ((key == "BOT_TOKEN" || key == "TELEGRAM_BOT_TOKEN") && config.token.empty()) {
+                        config.token = val;
+                    } else if (key == "DB_PATH" && !dbPathEnv && !val.empty()) {
+                        config.dbPath = val;
+                    } else if (key == "SEED_JSON_PATH" && !seedJsonPathEnv && !val.empty()) {
+                        config.seedJsonPath = val;
                     }
-                }
-
-                if (!config.token.empty()) {
-                    break;
                 }
             }
+            break;
         }
 
         config.resolveDataPaths();
