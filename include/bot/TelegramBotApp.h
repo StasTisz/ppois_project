@@ -99,6 +99,20 @@ public:
      */
     void setRetryConfig(const RetryConfig& config);
 
+    /**
+     * @brief Сохраняет ассоциацию photoUrl -> telegram_file_id в локальный кэш.
+     * @param photoUrl URL постера.
+     * @param fileId Идентификатор файла на серверах Telegram.
+     */
+    void cachePhotoFileId(const std::string& photoUrl, const std::string& fileId);
+
+    /**
+     * @brief Возвращает закэшированный telegram_file_id для постера, если он уже известен.
+     * @param photoUrl URL постера.
+     * @return file_id либо пустая строка при отсутствии в кэше.
+     */
+    [[nodiscard]] std::string getCachedPhotoFileId(const std::string& photoUrl) const;
+
 private:
     /**
      * @brief Преобразует InlineKeyboard в платформенный объект разметки tgbot-cpp.
@@ -188,6 +202,11 @@ public:
     [[nodiscard]] TgBot::Bot& getBot();
 
 private:
+    /**
+     * @brief Запускает асинхронный фоновый прогрев постеров в служебной группе/канале Telegram.
+     */
+    void startMediaCacheWarmup();
+
     /**
      * @brief Подписывается на события tgbot-cpp и связывает их с маршрутизатором `BotEventRouter`.
      */

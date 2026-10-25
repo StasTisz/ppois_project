@@ -36,6 +36,9 @@ struct BotConfig {
     /// Путь к начальному датасету фильмов в формате JSON.
     std::string seedJsonPath{"data/initial_movies.json"};
 
+    /// Идентификатор служебной группы/канала для фонового прогрева и кэширования постеров Telegram.
+    int64_t cacheChatId{0};
+
     /**
      * @brief Находит существующие пути к файлам данных при запуске из вложенных папок сборки (CLion / VS).
      */
@@ -92,6 +95,16 @@ struct BotConfig {
             config.seedJsonPath = seedJsonPathEnv;
         }
 
+        const char* cacheIdEnv = std::getenv("CACHE_CHANNEL_ID");
+        if (!cacheIdEnv || std::string(cacheIdEnv).empty()) {
+            cacheIdEnv = std::getenv("MEDIA_CACHE_CHAT_ID");
+        }
+        if (cacheIdEnv && !std::string(cacheIdEnv).empty()) {
+            try {
+                config.cacheChatId = std::stoll(cacheIdEnv);
+            } catch (...) {}
+        }
+
         // Поиск .env файла в текущей папке или выше по дереву каталогов
         const std::vector<std::string> envCandidates = {
             ".env",
@@ -138,6 +151,10 @@ struct BotConfig {
                         config.dbPath = val;
                     } else if (key == "SEED_JSON_PATH" && !seedJsonPathEnv && !val.empty()) {
                         config.seedJsonPath = val;
+                    } else if ((key == "CACHE_CHANNEL_ID" || key == "MEDIA_CACHE_CHAT_ID") && !cacheIdEnv && !val.empty()) {
+                        try {
+                            config.cacheChatId = std::stoll(val);
+                        } catch (...) {}
                     }
                 }
             }

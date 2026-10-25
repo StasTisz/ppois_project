@@ -1,6 +1,10 @@
 #include "bot/TelegramBotApp.h"
 
+#include <chrono>
+#include <fstream>
 #include <iostream>
+#include <thread>
+#include <nlohmann/json.hpp>
 
 /**
  * @file TelegramBotApp.cpp
@@ -183,6 +187,20 @@ void TgBotMessenger::setRetryConfig(const RetryConfig& config) {
     retryConfig_ = config;
 }
 
+void TgBotMessenger::cachePhotoFileId(const std::string& photoUrl, const std::string& fileId) {
+    if (!photoUrl.empty() && !fileId.empty()) {
+        photoFileIdCache_[photoUrl] = fileId;
+    }
+}
+
+std::string TgBotMessenger::getCachedPhotoFileId(const std::string& photoUrl) const {
+    auto it = photoFileIdCache_.find(photoUrl);
+    if (it != photoFileIdCache_.end()) {
+        return it->second;
+    }
+    return "";
+}
+
 // --- Реализация TelegramBotApp ---
 
 /**
@@ -321,6 +339,9 @@ void TelegramBotApp::run() {
         std::cerr << "[TelegramBotApp] Предупреждение: не удалось зарегистрировать команды: " << e.what() << "\n";
     }
 
+    // Запуск фонового прогрева медиа-кэша постеров в Telegram (если задан CACHE_CHANNEL_ID)
+    startMediaCacheWarmup();
+
     TgBot::TgLongPoll longPoll(bot_, 100, config_.longPollTimeoutSeconds);
     while (isRunning_) {
         try {
@@ -376,6 +397,79 @@ std::shared_ptr<TgBotMessenger> TelegramBotApp::getMessenger() const {
  */
 TgBot::Bot& TelegramBotApp::getBot() {
     return bot_;
+}
+
+void TelegramBotApp::startMediaCacheWarmup() {
+    if (config_.cacheChatId == 0) {
+        return;
+    }
+
+    std::thread([this]() {
+        int64_t targetChatId = config_.cacheChatId;
+        // Автоматическое определение знака для обычных групп (например, 5310490407 -> -5310490407)
+        if (targetChatId > 0 && targetChatId < 1000000000000LL) {
+            try {
+                bot_.getApi().getChat(targetChatId);
+            } catch (...) {
+                try {
+                    bot_.getApi().getChat(-targetChatId);
+                    targetChatId = -targetChatId;
+                } catch (...) {}
+            }
+        }
+
+        std::cout << "[TelegramBotApp] Фоновый прогрев медиа-кэша постеров в группе: "
+                  << targetChatId << " ...\n";
+
+        std::ifstream file(config_.seedJsonPath);
+        if (!file.is_open()) {
+            return;
+        }
+
+        nlohmann::json root;
+        try {
+            file >> root;
+        } catch (...) {
+            return;
+        }
+
+        if (!root.is_array()) {
+            return;
+        }
+
+        int cachedCount = 0;
+        for (const auto& item : root) {
+            if (!isRunning_) {
+                break;
+            }
+
+            std::string title = item.value("title", "");
+            std::string posterUrl = item.value("poster_url", "");
+            if (posterUrl.empty()) {
+                continue;
+            }
+
+            if (!messenger_->getCachedPhotoFileId(posterUrl).empty()) {
+                continue;
+            }
+
+            try {
+                auto msg = bot_.getApi().sendPhoto(targetChatId, posterUrl, "🎬 " + title, 0, nullptr);
+                if (msg && !msg->photo.empty() && msg->photo.back()) {
+                    messenger_->cachePhotoFileId(posterUrl, msg->photo.back()->fileId);
+                    ++cachedCount;
+                }
+            } catch (const std::exception& e) {
+                // Игнорируем единичные сбои внешних ресурсов
+            }
+
+            // Задержка 150 мс для соблюдения ограничений Telegram Bot API
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+        }
+
+        std::cout << "[TelegramBotApp] Фоновый прогрев медиа-кэша завершен! Новых постеров закэшировано: "
+                  << cachedCount << "\n";
+    }).detach();
 }
 
 } // namespace bot
