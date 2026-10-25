@@ -103,8 +103,7 @@ bool TgBotMessenger::sendPhotoWithKeyboard(
 
     if (!success) {
         std::cerr << "[TgBotMessenger] Ошибка отправки постера (" << photoUrlOrFileId
-                  << "): " << lastError << ". Выполняется fallback на текстовое сообщение.\n";
-        sendMessageWithKeyboard(chatId, caption, keyboard);
+                  << "): " << lastError << ".\n";
         return false;
     }
 

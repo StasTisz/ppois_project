@@ -106,13 +106,12 @@ void BrowsingRecommendationsState::showNextMovie(IDialogStateContext& ctx, UserS
     ctx.recordImpression(session.userId, nextMovie->id);
 
     if (messenger) {
-        int64_t storageChatId = ctx.getStorageChatId();
         MovieCardFormatter::sendMovieCard(
             *messenger,
             session.chatId,
             *session.currentMovie,
             KeyboardFactory::createMovieReactionKeyboard(),
-            storageChatId,
+            0,
             [&ctx](int64_t movieId, const std::string& fileId) {
                 ctx.cachePosterFileId(movieId, fileId);
             });

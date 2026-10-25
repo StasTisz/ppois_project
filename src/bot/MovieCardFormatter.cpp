@@ -118,7 +118,7 @@ void MovieCardFormatter::sendMovieCard(
     int64_t chatId,
     core::Movie& movie,
     const InlineKeyboard& keyboard,
-    int64_t storageChatId,
+    int64_t /* storageChatId */,
     std::function<void(int64_t, const std::string&)> onFileIdCached) {
     std::string caption = formatMovieCard(movie, kMaxPhotoCaptionLength);
 
@@ -128,31 +128,17 @@ void MovieCardFormatter::sendMovieCard(
         if (sent) {
             return;
         }
+        // Если старый file_id сброшен сервером Telegram, очищаем и пробуем напрямую по URL
         movie.posterFileId.clear();
     }
 
-    // 2. Если есть сетевой URL постера
+    // 2. Отправка напрямую пользователю в чат по сетевому URL постера (1 шаг, без промежуточных групп)
     if (hasValidPosterUrl(movie)) {
         std::string obtainedFileId;
-        if (storageChatId != 0) {
-            InlineKeyboard emptyKb;
-            bool storageSent = messenger.sendPhotoWithKeyboard(
-                storageChatId, movie.posterUrl, "Cache: " + movie.title, emptyKb, &obtainedFileId);
-            if (storageSent && !obtainedFileId.empty()) {
-                movie.posterFileId = obtainedFileId;
-                if (onFileIdCached) {
-                    onFileIdCached(movie.id, obtainedFileId);
-                }
-                bool sentToUser = messenger.sendPhotoWithKeyboard(chatId, obtainedFileId, caption, keyboard);
-                if (sentToUser) {
-                    return;
-                }
-            }
-        }
-
         bool directSent = messenger.sendPhotoWithKeyboard(
             chatId, movie.posterUrl, caption, keyboard, &obtainedFileId);
         if (directSent) {
+            // Telegram в ответе возвращает присвоенный file_id. Сохраняем его для будущих запросов!
             if (!obtainedFileId.empty()) {
                 movie.posterFileId = obtainedFileId;
                 if (onFileIdCached) {
@@ -162,10 +148,12 @@ void MovieCardFormatter::sendMovieCard(
             return;
         }
 
+        // Если и URL недоступен (например, 404), отправляем текстовое сообщение
         messenger.sendMessageWithKeyboard(chatId, caption, keyboard);
         return;
     }
 
+    // 3. Fallback: если URL постера отсутствует
     messenger.sendMessageWithKeyboard(chatId, caption, keyboard);
 }
 

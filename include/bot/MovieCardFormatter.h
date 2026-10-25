@@ -33,13 +33,13 @@ public:
         size_t maxLength = kMaxPhotoCaptionLength);
 
     /**
-     * @brief Отправляет карточку фильма с поддержкой ленивого кэширования через storage-чат и file_id.
+     * @brief Отправляет карточку фильма с прямой доставкой пользователю и кэшированием poster_file_id.
      * @param messenger Клиент отправки сообщений.
      * @param chatId Идентификатор целевого чата пользователя.
      * @param movie Объект фильма (кэширует file_id в movie.posterFileId).
      * @param keyboard Клавиатура реакций.
-     * @param storageChatId Опциональный ID чата-хранилища для предварительной загрузки.
-     * @param onFileIdCached Callback для сохранения file_id в базу данных.
+     * @param storageChatId Не используется (сохранено для обратной совместимости сигнатуры).
+     * @param onFileIdCached Callback для сохранения полученного от Telegram file_id в базу данных.
      */
     static void sendMovieCard(
         IBotMessenger& messenger,
