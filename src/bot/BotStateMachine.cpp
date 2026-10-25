@@ -7,6 +7,7 @@
 #include "bot/states/RatingState.h"
 
 #include <ctime>
+#include <iostream>
 #include <utility>
 
 /**
@@ -153,6 +154,14 @@ void BotStateMachine::transitionTo(int64_t userId, BotState newState) {
     if (userRepo_) {
         int64_t nowSec = static_cast<int64_t>(std::time(nullptr));
         userRepo_->saveUser(core::User{session.userId, session.username, static_cast<int>(newState), nowSec});
+        if (recService_) {
+            if (!session.selectedGenres.empty()) {
+                recService_->setFavoriteGenres(session.userId, session.selectedGenres);
+            }
+            for (const auto& [mId, score] : session.movieRatings) {
+                recService_->rateMovie(session.userId, mId, score);
+            }
+        }
     }
 
     auto it = states_.find(newState);
@@ -217,15 +226,41 @@ std::optional<core::Movie> BotStateMachine::fetchNextMovie(int64_t userId) {
         }
 
         auto candidates = recService_->getRecommendations(userId, 20);
+
+        // 1. Сначала ищем фильм, совпадающий с выбранными жанрами
+        if (!session.selectedGenres.empty()) {
+            for (const auto& movie : candidates) {
+                if (!session.isSkipped(movie.id) && session.movieRatings.find(movie.id) == session.movieRatings.end()) {
+                    for (const auto& g : movie.genres) {
+                        if (session.hasGenre(g)) {
+                            return movie;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Если точных совпадений по жанрам нет — берем любого первого неоцененного кандидата
         for (const auto& movie : candidates) {
             if (!session.isSkipped(movie.id) && session.movieRatings.find(movie.id) == session.movieRatings.end()) {
                 return movie;
             }
         }
 
-        // Если все кандидаты были пропущены пользователем, сбрасываем фильтр пропусков
+        // 3. Если все кандидаты были пропущены пользователем, сбрасываем фильтр пропусков
         if (!candidates.empty()) {
             session.skippedMovieIds.clear();
+            if (!session.selectedGenres.empty()) {
+                for (const auto& movie : candidates) {
+                    if (session.movieRatings.find(movie.id) == session.movieRatings.end()) {
+                        for (const auto& g : movie.genres) {
+                            if (session.hasGenre(g)) {
+                                return movie;
+                            }
+                        }
+                    }
+                }
+            }
             for (const auto& movie : candidates) {
                 if (session.movieRatings.find(movie.id) == session.movieRatings.end()) {
                     return movie;
