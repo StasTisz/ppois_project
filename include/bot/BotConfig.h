@@ -1,7 +1,8 @@
 #pragma once
 
-#include <string>
 #include <cstdlib>
+#include <fstream>
+#include <string>
 
 /**
  * @file BotConfig.h
@@ -28,8 +29,8 @@ struct BotConfig {
     bool debugLogging{true};
 
     /**
-     * @brief Фабричный метод, считывающий конфигурацию из стандартных переменных окружения.
-     * Сначала проверяет `BOT_TOKEN`, затем `TELEGRAM_BOT_TOKEN`.
+     * @brief Фабричный метод, считывающий конфигурацию из переменных окружения или файла .env.
+     * Сначала проверяет `BOT_TOKEN`, затем `TELEGRAM_BOT_TOKEN`, затем локальный файл `.env`.
      * @return Инициализированный объект BotConfig.
      */
     static BotConfig fromEnv() {
@@ -41,6 +42,43 @@ struct BotConfig {
         if (tokenEnv) {
             config.token = tokenEnv;
         }
+
+        // Если переменная окружения не задана, пробуем считать из локального файла .env
+        if (config.token.empty()) {
+            std::ifstream envFile(".env");
+            if (envFile.is_open()) {
+                std::string line;
+                while (std::getline(envFile, line)) {
+                    while (!line.empty() && (line.front() == ' ' || line.front() == '\t')) {
+                        line.erase(line.begin());
+                    }
+                    while (!line.empty() && (line.back() == ' ' || line.back() == '\t' || line.back() == '\r')) {
+                        line.pop_back();
+                    }
+                    if (line.empty() || line[0] == '#') {
+                        continue;
+                    }
+
+                    auto pos = line.find('=');
+                    if (pos != std::string::npos) {
+                        std::string key = line.substr(0, pos);
+                        std::string val = line.substr(pos + 1);
+                        while (!val.empty() && (val.front() == ' ' || val.front() == '"' || val.front() == '\'')) {
+                            val.erase(val.begin());
+                        }
+                        while (!val.empty() && (val.back() == ' ' || val.back() == '"' || val.back() == '\'' || val.back() == '\r')) {
+                            val.pop_back();
+                        }
+
+                        if (key == "BOT_TOKEN" || key == "TELEGRAM_BOT_TOKEN") {
+                            config.token = val;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         return config;
     }
 

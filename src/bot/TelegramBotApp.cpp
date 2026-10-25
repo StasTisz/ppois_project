@@ -95,9 +95,14 @@ bool TgBotMessenger::sendPhotoWithKeyboard(
     auto markup = buildMarkup(keyboard);
     std::string lastError;
 
+    // Для внешних ссылок на фото не делаем повторных блокирующих попыток,
+    // чтобы при сетевом сбое TMDB бот не зависал, а сразу отдавал текстовую карточку
+    RetryConfig mediaConfig = retryConfig_;
+    mediaConfig.maxRetries = 0;
+
     bool success = NetworkErrorHandler::executeWithRetry([this, chatId, &photoUrl, &caption, &markup]() {
         bot_.getApi().sendPhoto(chatId, photoUrl, caption, nullptr, markup);
-    }, retryConfig_, &lastError);
+    }, mediaConfig, &lastError);
 
     if (!success) {
         std::cerr << "[TgBotMessenger] Ошибка отправки постера (" << photoUrl
