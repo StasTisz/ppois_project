@@ -217,17 +217,16 @@ TEST(PosterCachingTest, InstantDeliveryWhenFileIdCached) {
     EXPECT_TRUE(messenger.sentTexts.empty());
 }
 
-TEST(PosterCachingTest, LazyCachingViaStorageChat) {
+TEST(PosterCachingTest, DirectSendCapturesAndCachesFileId) {
     MockCacheMessenger messenger;
     messenger.returnedFileId = "newly_generated_file_id_777";
 
     core::Movie movie;
     movie.id = 10;
-    movie.title = "Storage Movie";
+    movie.title = "Direct Movie";
     movie.posterUrl = "https://example.com/fresh_poster.jpg";
     movie.posterFileId = "";
 
-    int64_t storageChatId = -100123456789;
     int64_t userChatId = 555;
     bool callbackInvoked = false;
     std::string savedFileId;
@@ -238,26 +237,28 @@ TEST(PosterCachingTest, LazyCachingViaStorageChat) {
         userChatId,
         movie,
         kb,
-        storageChatId,
+        0,
         [&](int64_t movieId, const std::string& fileId) {
             callbackInvoked = true;
             savedFileId = fileId;
             EXPECT_EQ(movieId, 10);
         });
 
-    // 1st photo sent to storageChatId by URL
-    // 2nd photo sent to userChatId by newly captured file_id
-    ASSERT_EQ(messenger.photoRequests.size(), 2u);
-    EXPECT_EQ(messenger.photoRequests[0].chatId, storageChatId);
+    // 1st photo sent directly to userChatId by URL
+    ASSERT_EQ(messenger.photoRequests.size(), 1u);
+    EXPECT_EQ(messenger.photoRequests[0].chatId, userChatId);
     EXPECT_EQ(messenger.photoRequests[0].photoUrlOrFileId, "https://example.com/fresh_poster.jpg");
-
-    EXPECT_EQ(messenger.photoRequests[1].chatId, userChatId);
-    EXPECT_EQ(messenger.photoRequests[1].photoUrlOrFileId, "newly_generated_file_id_777");
 
     // Verified callback and local movie object caching
     EXPECT_TRUE(callbackInvoked);
     EXPECT_EQ(savedFileId, "newly_generated_file_id_777");
     EXPECT_EQ(movie.posterFileId, "newly_generated_file_id_777");
+
+    // 2nd call: now uses cached posterFileId directly!
+    bot::MovieCardFormatter::sendMovieCard(messenger, userChatId, movie, kb);
+    ASSERT_EQ(messenger.photoRequests.size(), 2u);
+    EXPECT_EQ(messenger.photoRequests[1].chatId, userChatId);
+    EXPECT_EQ(messenger.photoRequests[1].photoUrlOrFileId, "newly_generated_file_id_777");
 }
 
 TEST(PosterCachingTest, DirectSendWhenNoStorageChatCapturesFileId) {
