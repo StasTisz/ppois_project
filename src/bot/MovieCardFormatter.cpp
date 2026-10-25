@@ -132,12 +132,75 @@ std::string MovieCardFormatter::formatMovieCard(
 void MovieCardFormatter::sendMovieCard(
     IBotMessenger& messenger,
     int64_t chatId,
+    core::Movie& movie,
+    const InlineKeyboard& keyboard,
+    int64_t storageChatId,
+    std::function<void(int64_t, const std::string&)> onFileIdCached) {
+    std::string caption = formatMovieCard(movie, kMaxPhotoCaptionLength);
+
+    // 1. Попытка мгновенной отправки по уже кэшированному posterFileId (~50мс)
+    if (!movie.posterFileId.empty()) {
+        bool sent = messenger.sendPhotoWithKeyboard(chatId, movie.posterFileId, caption, keyboard);
+        if (sent) {
+            return;
+        }
+        movie.posterFileId.clear();
+    }
+
+    // 2. Если есть сетевой URL постера
+    if (hasValidPosterUrl(movie)) {
+        std::string obtainedFileId;
+        if (storageChatId != 0) {
+            InlineKeyboard emptyKb;
+            bool storageSent = messenger.sendPhotoWithKeyboard(
+                storageChatId, movie.posterUrl, "Cache: " + movie.title, emptyKb, &obtainedFileId);
+            if (storageSent && !obtainedFileId.empty()) {
+                movie.posterFileId = obtainedFileId;
+                if (onFileIdCached) {
+                    onFileIdCached(movie.id, obtainedFileId);
+                }
+                bool sentToUser = messenger.sendPhotoWithKeyboard(chatId, obtainedFileId, caption, keyboard);
+                if (sentToUser) {
+                    return;
+                }
+            }
+        }
+
+        bool directSent = messenger.sendPhotoWithKeyboard(
+            chatId, movie.posterUrl, caption, keyboard, &obtainedFileId);
+        if (directSent) {
+            if (!obtainedFileId.empty()) {
+                movie.posterFileId = obtainedFileId;
+                if (onFileIdCached) {
+                    onFileIdCached(movie.id, obtainedFileId);
+                }
+            }
+            return;
+        }
+
+        messenger.sendMessageWithKeyboard(chatId, caption, keyboard);
+        return;
+    }
+
+    messenger.sendMessageWithKeyboard(chatId, caption, keyboard);
+}
+
+void MovieCardFormatter::sendMovieCard(
+    IBotMessenger& messenger,
+    int64_t chatId,
     const core::Movie& movie,
     const InlineKeyboard& keyboard,
     const std::string& notice,
     const std::string& explanation,
     const std::string& userStatus) {
     std::string caption = formatMovieCard(movie, kMaxPhotoCaptionLength, notice, explanation, userStatus);
+
+    if (!movie.posterFileId.empty()) {
+        bool sent = messenger.sendPhotoWithKeyboard(chatId, movie.posterFileId, caption, keyboard);
+        if (sent) {
+            return;
+        }
+    }
 
     if (hasValidPosterUrl(movie)) {
         bool sent = messenger.sendPhotoWithKeyboard(chatId, movie.posterUrl, caption, keyboard);

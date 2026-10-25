@@ -58,13 +58,26 @@ core::Movie SQLiteMovieRepository::extractMovie(sqlite3_stmt* stmt) {
     const auto* posterText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
     movie.posterUrl = posterText ? posterText : "";
 
+    if (sqlite3_column_count(stmt) > 8) {
+        const auto* fileIdText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8));
+        movie.posterFileId = fileIdText ? fileIdText : "";
+    }
+
+    if (sqlite3_column_count(stmt) > 9) {
+        const auto* trailerText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9));
+        movie.trailerUrl = trailerText ? trailerText : "";
+    }
+
+    // Pre-calculate zero-allocation micro-embedding
+    movie.genreMask = movie.getOrComputeGenreMask();
+
     return movie;
 }
 
 std::optional<core::Movie> SQLiteMovieRepository::getById(int64_t id) {
     if (!db_) return std::nullopt;
 
-    const char* sql = "SELECT id, title, year, genres, director, description, rating_avg, poster_url "
+    const char* sql = "SELECT id, title, year, genres, director, description, rating_avg, poster_url, poster_file_id, trailer_url "
                       "FROM movies WHERE id = ?;";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
@@ -86,7 +99,7 @@ std::vector<core::Movie> SQLiteMovieRepository::getAll() {
     std::vector<core::Movie> movies;
     if (!db_) return movies;
 
-    const char* sql = "SELECT id, title, year, genres, director, description, rating_avg, poster_url "
+    const char* sql = "SELECT id, title, year, genres, director, description, rating_avg, poster_url, poster_file_id, trailer_url "
                       "FROM movies ORDER BY id ASC;";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
@@ -105,7 +118,7 @@ std::vector<core::Movie> SQLiteMovieRepository::getTopRated(size_t limit) {
     std::vector<core::Movie> movies;
     if (!db_) return movies;
 
-    const char* sql = "SELECT id, title, year, genres, director, description, rating_avg, poster_url "
+    const char* sql = "SELECT id, title, year, genres, director, description, rating_avg, poster_url, poster_file_id, trailer_url "
                       "FROM movies ORDER BY rating_avg DESC LIMIT ?;";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
@@ -126,7 +139,7 @@ std::vector<core::Movie> SQLiteMovieRepository::getByGenre(const std::string& ge
     std::vector<core::Movie> movies;
     if (!db_) return movies;
 
-    const char* sql = "SELECT id, title, year, genres, director, description, rating_avg, poster_url "
+    const char* sql = "SELECT id, title, year, genres, director, description, rating_avg, poster_url, poster_file_id, trailer_url "
                       "FROM movies WHERE genres LIKE ? ORDER BY rating_avg DESC LIMIT ?;";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
@@ -149,8 +162,8 @@ bool SQLiteMovieRepository::addMovie(const core::Movie& movie) {
     if (!db_) return false;
 
     const char* sql = "INSERT OR REPLACE INTO movies "
-                      "(id, title, year, genres, director, description, rating_avg, poster_url) "
-                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
+                      "(id, title, year, genres, director, description, rating_avg, poster_url, poster_file_id, trailer_url) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
         return false;
@@ -170,6 +183,25 @@ bool SQLiteMovieRepository::addMovie(const core::Movie& movie) {
     sqlite3_bind_text(stmt, 6, movie.description.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_double(stmt, 7, movie.ratingAvg);
     sqlite3_bind_text(stmt, 8, movie.posterUrl.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 9, movie.posterFileId.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 10, movie.trailerUrl.c_str(), -1, SQLITE_TRANSIENT);
+
+    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
+    sqlite3_finalize(stmt);
+    return success;
+}
+
+bool SQLiteMovieRepository::updatePosterFileId(int64_t movieId, const std::string& fileId) {
+    if (!db_) return false;
+
+    const char* sql = "UPDATE movies SET poster_file_id = ? WHERE id = ?;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        return false;
+    }
+
+    sqlite3_bind_text(stmt, 1, fileId.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int64(stmt, 2, movieId);
 
     bool success = (sqlite3_step(stmt) == SQLITE_DONE);
     sqlite3_finalize(stmt);
@@ -192,6 +224,31 @@ size_t SQLiteMovieRepository::count() {
 
     sqlite3_finalize(stmt);
     return total;
+}
+
+
+std::vector<core::Movie> SQLiteMovieRepository::findByTitle(const std::string& query, size_t limit) {
+    std::vector<core::Movie> movies;
+    if (!db_ || query.empty()) return movies;
+
+    const char* sql = "SELECT id, title, year, genres, director, description, rating_avg, poster_url, poster_file_id, trailer_url "
+                      "FROM movies WHERE title LIKE ? COLLATE NOCASE "
+                      "ORDER BY rating_avg DESC LIMIT ?;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        return movies;
+    }
+
+    std::string pattern = "%" + query + "%";
+    sqlite3_bind_text(stmt, 1, pattern.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int64(stmt, 2, static_cast<int64_t>(limit));
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        movies.push_back(extractMovie(stmt));
+    }
+
+    sqlite3_finalize(stmt);
+    return movies;
 }
 
 } // namespace repository

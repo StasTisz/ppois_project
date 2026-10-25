@@ -15,7 +15,9 @@ public:
     std::vector<core::Movie> getAll() override;
     std::vector<core::Movie> getTopRated(size_t limit) override;
     std::vector<core::Movie> getByGenre(const std::string& genre, size_t limit) override;
+    std::vector<core::Movie> findByTitle(const std::string& query, size_t limit = 10) override;
     bool addMovie(const core::Movie& movie) override;
+    bool updatePosterFileId(int64_t movieId, const std::string& fileId) override;
     size_t count() override;
 
 private:

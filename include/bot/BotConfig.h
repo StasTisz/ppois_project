@@ -15,7 +15,7 @@ namespace bot {
 
 /**
  * @struct BotConfig
- * @brief Инкапсулирует параметры времени выполнения для сервиса Telegram-бота (Задача 2.1).
+ * @brief Инкапсулирует параметры времени выполнения для сервиса Telegram-бота.
  *
  * Содержит параметры сетевого взаимодействия, таймауты опроса, уровень логирования
  * и пути к локальной базе данных SQLite и начальному датасету фильмов.
@@ -38,6 +38,12 @@ struct BotConfig {
 
     /// Идентификатор служебной группы/канала для фонового прогрева и кэширования постеров Telegram.
     int64_t cacheChatId{0};
+
+    /// Опциональный chat_id для предварительного кэширования медиа / хранения постеров.
+    int64_t storageChatId{0};
+
+    /// Размер пула потоков для асинхронной неблокирующей обработки событий.
+    size_t threadPoolSize{4};
 
     /**
      * @brief Находит существующие пути к файлам данных при запуске из вложенных папок сборки (CLion / VS).
@@ -71,9 +77,6 @@ struct BotConfig {
 
     /**
      * @brief Фабричный метод, считывающий конфигурацию из переменных окружения или файла .env.
-     * Проверяет `BOT_TOKEN`, `TELEGRAM_BOT_TOKEN`, `DB_PATH`, `SEED_JSON_PATH`,
-     * а затем файл `.env` в текущей и родительских папках.
-     * @return Инициализированный объект BotConfig с разрешенными путями к данным.
      */
     static BotConfig fromEnv() {
         BotConfig config;
@@ -99,10 +102,26 @@ struct BotConfig {
         if (!cacheIdEnv || std::string(cacheIdEnv).empty()) {
             cacheIdEnv = std::getenv("MEDIA_CACHE_CHAT_ID");
         }
+        if (!cacheIdEnv || std::string(cacheIdEnv).empty()) {
+            cacheIdEnv = std::getenv("BOT_STORAGE_CHAT_ID");
+        }
+        if (!cacheIdEnv || std::string(cacheIdEnv).empty()) {
+            cacheIdEnv = std::getenv("STORAGE_CHAT_ID");
+        }
         if (cacheIdEnv && !std::string(cacheIdEnv).empty()) {
             try {
                 config.cacheChatId = std::stoll(cacheIdEnv);
+                config.storageChatId = config.cacheChatId;
             } catch (...) {}
+        }
+
+        const char* threadsEnv = std::getenv("BOT_THREAD_POOL_SIZE");
+        if (threadsEnv) {
+            try {
+                config.threadPoolSize = std::stoul(threadsEnv);
+            } catch (...) {
+                config.threadPoolSize = 4;
+            }
         }
 
         // Поиск .env файла в текущей папке или выше по дереву каталогов
@@ -151,9 +170,14 @@ struct BotConfig {
                         config.dbPath = val;
                     } else if (key == "SEED_JSON_PATH" && !seedJsonPathEnv && !val.empty()) {
                         config.seedJsonPath = val;
-                    } else if ((key == "CACHE_CHANNEL_ID" || key == "MEDIA_CACHE_CHAT_ID") && !cacheIdEnv && !val.empty()) {
+                    } else if ((key == "CACHE_CHANNEL_ID" || key == "MEDIA_CACHE_CHAT_ID" || key == "BOT_STORAGE_CHAT_ID" || key == "STORAGE_CHAT_ID") && !cacheIdEnv && !val.empty()) {
                         try {
                             config.cacheChatId = std::stoll(val);
+                            config.storageChatId = config.cacheChatId;
+                        } catch (...) {}
+                    } else if (key == "BOT_THREAD_POOL_SIZE" && !threadsEnv && !val.empty()) {
+                        try {
+                            config.threadPoolSize = std::stoul(val);
                         } catch (...) {}
                     }
                 }
@@ -161,14 +185,16 @@ struct BotConfig {
             break;
         }
 
+        if (config.storageChatId != 0 && config.cacheChatId == 0) {
+            config.cacheChatId = config.storageChatId;
+        } else if (config.cacheChatId != 0 && config.storageChatId == 0) {
+            config.storageChatId = config.cacheChatId;
+        }
+
         config.resolveDataPaths();
         return config;
     }
 
-    /**
-     * @brief Проверяет наличие всех обязательных параметров для запуска бота.
-     * @return true, если задан непустой токен API, иначе false.
-     */
     [[nodiscard]] bool isValid() const {
         return !token.empty();
     }

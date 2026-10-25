@@ -83,14 +83,17 @@ endif()
 # Copy data folder to build binary directory for runtime tests
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
-# Core domain library
+# Core domain & backend library
 add_library(movie_rec_core STATIC
     src/repository/DatabaseManager.cpp
     src/repository/SQLiteMovieRepository.cpp
     src/repository/SQLiteUserRepository.cpp
     src/recommendation/PopularityRecommendationStrategy.cpp
     src/recommendation/ContentBasedRecommendationStrategy.cpp
+    src/recommendation/CollaborativeFilteringStrategy.cpp
+    src/recommendation/HybridRecommendationStrategy.cpp
     src/recommendation/RecommendationService.cpp
+    src/analytics/MetricsCollector.cpp
 )
 
 target_include_directories(movie_rec_core PUBLIC
@@ -120,8 +123,14 @@ add_library(movie_rec_bot_lib STATIC
     src/bot/states/RatingState.cpp
 )
 
+target_include_directories(movie_rec_bot_lib PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
 target_link_libraries(movie_rec_bot_lib PUBLIC
     movie_rec_core
+    ${TGBOT_TARGET}
 )
 
 # Main Telegram Bot Executable
@@ -131,6 +140,7 @@ add_executable(movie_rec_bot
 
 target_link_libraries(movie_rec_bot PRIVATE
     movie_rec_bot_lib
+    movie_rec_core
 )
 
 # Unit Tests Executable
@@ -146,10 +156,14 @@ add_executable(movie_rec_tests
     tests/test_command_dispatcher.cpp
     tests/test_movie_card.cpp
     tests/test_bot_integration.cpp
+    tests/test_performance_optimizations.cpp
+    tests/test_collaborative_hybrid_metrics.cpp
+    tests/test_coverage_expansion.cpp
 )
 
 target_link_libraries(movie_rec_tests PRIVATE
     movie_rec_bot_lib
+    movie_rec_core
     GTest::gtest
     GTest::gtest_main
 )

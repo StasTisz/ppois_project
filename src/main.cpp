@@ -4,6 +4,7 @@
 #include <csignal>
 #include <filesystem>
 #include <memory>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -19,10 +20,6 @@
 /**
  * @file main.cpp
  * @brief Точка входа в приложение Telegram-бота рекомендаций фильмов.
- *
- * Инициализирует локальную базу данных SQLite, загружает датасет фильмов,
- * настраивает сервис рекомендаций и конечный автомат FSM,
- * и запускает цикл опроса Telegram Bot API (long-polling).
  */
 
 namespace {
@@ -40,10 +37,6 @@ void handleSignal(int signal) {
 
 } // namespace
 
-/**
- * @brief Главная функция программы.
- * @return 0 при успешном запуске и выполнении либо штатном выходе при отсутствии токена; 1 при фатальной ошибке.
- */
 int main() {
 #ifdef _WIN32
     // Настройка кодировки UTF-8 в консоли Windows для корректного отображения кириллицы
@@ -55,9 +48,10 @@ int main() {
 
     std::cout << "========================================\n";
     std::cout << " Movie Recommendation Telegram Bot (C++)\n";
-    std::cout << " Full Integration: Core + Bot Layer     \n";
+    std::cout << " Full Stack: Core, DB & Telegram Bot App \n";
     std::cout << "========================================\n\n";
 
+    // 1. Load Telegram configuration and resolve paths
     bot::BotConfig config = bot::BotConfig::fromEnv();
 
     // Создаем родительскую директорию для базы данных при её наличии и отсутствии на диске
@@ -102,6 +96,15 @@ int main() {
     std::cout << "[INFO] Инициализация TelegramBotApp с RecommendationService и базой данных SQLite...\n";
     try {
         bot::TelegramBotApp app(config, recService, userRepo);
+        auto sm = app.getStateMachine();
+        if (sm) {
+            sm->setMetricsCollector(recService->getMetricsCollector());
+            sm->setPosterCacheCallback([movieRepo](int64_t movieId, const std::string& fileId) {
+                movieRepo->updatePosterFileId(movieId, fileId);
+                std::cout << "[PosterCache] Сохранен Telegram file_id для фильма ID=" << movieId << "\n";
+            });
+        }
+
         g_runningApp = &app;
         app.run();
         g_runningApp = nullptr;

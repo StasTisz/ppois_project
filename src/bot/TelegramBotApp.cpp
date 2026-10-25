@@ -124,45 +124,51 @@ void TgBotMessenger::editMessageWithKeyboard(
  */
 bool TgBotMessenger::sendPhotoWithKeyboard(
     int64_t chatId,
-    const std::string& photoUrl,
+    const std::string& photoUrlOrFileId,
     const std::string& caption,
-    const InlineKeyboard& keyboard) {
+    const InlineKeyboard& keyboard,
+    std::string* fileIdOut) {
     auto markup = buildMarkup(keyboard);
     std::string lastError;
+    TgBot::Message::Ptr sentMsg;
 
     // Для внешних ссылок на фото не делаем повторных блокирующих попыток,
     // чтобы при сетевом сбое TMDB бот не зависал, а сразу отдавал текстовую карточку
     RetryConfig mediaConfig = retryConfig_;
     mediaConfig.maxRetries = 0;
 
-    std::string photoTarget = photoUrl;
-    auto it = photoFileIdCache_.find(photoUrl);
+    std::string photoTarget = photoUrlOrFileId;
+    auto it = photoFileIdCache_.find(photoUrlOrFileId);
     if (it != photoFileIdCache_.end() && !it->second.empty()) {
         photoTarget = it->second;
     }
 
-    bool success = NetworkErrorHandler::executeWithRetry([this, chatId, &photoTarget, &photoUrl, &caption, &markup]() {
-        auto msg = bot_.getApi().sendPhoto(chatId, photoTarget, caption, 0, markup);
-        if (msg && !msg->photo.empty() && msg->photo.back()) {
-            photoFileIdCache_[photoUrl] = msg->photo.back()->fileId;
+    bool success = NetworkErrorHandler::executeWithRetry([this, chatId, &photoTarget, &caption, &markup, &sentMsg]() {
+        sentMsg = bot_.getApi().sendPhoto(chatId, photoTarget, caption, nullptr, markup);
+        if (sentMsg && !sentMsg->photo.empty() && sentMsg->photo.back()) {
+            photoFileIdCache_[photoTarget] = sentMsg->photo.back()->fileId;
         }
     }, mediaConfig, &lastError);
 
-    // Если отправка по закэшированному file_id не удалась, пробуем повторить по исходному photoUrl
-    if (!success && photoTarget != photoUrl) {
-        photoFileIdCache_.erase(photoUrl);
-        success = NetworkErrorHandler::executeWithRetry([this, chatId, &photoUrl, &caption, &markup]() {
-            auto msg = bot_.getApi().sendPhoto(chatId, photoUrl, caption, 0, markup);
-            if (msg && !msg->photo.empty() && msg->photo.back()) {
-                photoFileIdCache_[photoUrl] = msg->photo.back()->fileId;
+    // Если отправка по закэшированному file_id не удалась, пробуем повторить по исходному photoUrlOrFileId
+    if (!success && photoTarget != photoUrlOrFileId) {
+        photoFileIdCache_.erase(photoUrlOrFileId);
+        success = NetworkErrorHandler::executeWithRetry([this, chatId, &photoUrlOrFileId, &caption, &markup, &sentMsg]() {
+            sentMsg = bot_.getApi().sendPhoto(chatId, photoUrlOrFileId, caption, nullptr, markup);
+            if (sentMsg && !sentMsg->photo.empty() && sentMsg->photo.back()) {
+                photoFileIdCache_[photoUrlOrFileId] = sentMsg->photo.back()->fileId;
             }
         }, mediaConfig, &lastError);
     }
 
     if (!success) {
-        std::cerr << "[TgBotMessenger] Ошибка отправки постера (" << photoUrl
+        std::cerr << "[TgBotMessenger] Ошибка отправки постера (" << photoUrlOrFileId
                   << "): " << lastError << ". Выполняется fallback на текстовое сообщение.\n";
         return false;
+    }
+
+    if (fileIdOut && sentMsg && !sentMsg->photo.empty()) {
+        *fileIdOut = sentMsg->photo.back()->fileId;
     }
 
     return true;
@@ -212,7 +218,9 @@ TelegramBotApp::TelegramBotApp(const BotConfig& config)
       bot_(config.token),
       messenger_(std::make_shared<TgBotMessenger>(bot_)),
       router_(std::make_shared<BotEventRouter>(messenger_)),
-      stateMachine_(std::make_shared<BotStateMachine>(messenger_)) {
+      stateMachine_(std::make_shared<BotStateMachine>(messenger_)),
+      threadPool_(config.threadPoolSize > 0 ? config.threadPoolSize : 4) {
+    stateMachine_->setStorageChatId(config.storageChatId);
     stateMachine_->attachToRouter(*router_);
     setupCallbacks();
 }
@@ -260,6 +268,16 @@ void TelegramBotApp::setupCallbacks() {
             return;
         }
 
+        // Игнорируем сообщения из чата-хранилища постеров во избежание зацикливания
+        if (config_.storageChatId != 0 && message->chat && message->chat->id == config_.storageChatId) {
+            return;
+        }
+
+        // Игнорируем сообщения от ботов (включая сообщения от самого себя)
+        if (message->from && message->from->isBot) {
+            return;
+        }
+
         IncomingMessage msg;
         if (message->chat) {
             msg.chatId = message->chat->id;
@@ -270,11 +288,22 @@ void TelegramBotApp::setupCallbacks() {
         }
         msg.text = message->text;
 
-        router_->onTextMessage(msg);
+        threadPool_.enqueue([this, msg]() {
+            try {
+                router_->onTextMessage(msg);
+            } catch (const std::exception& e) {
+                std::cerr << "[TelegramBotApp] Исключение в пуле потоков (onTextMessage): " << e.what() << "\n";
+            }
+        });
     });
 
     bot_.getEvents().onCallbackQuery([this](const TgBot::CallbackQuery::Ptr& query) {
         if (!query) {
+            return;
+        }
+
+        // Игнорируем callback-события из чата-хранилища
+        if (config_.storageChatId != 0 && query->message && query->message->chat && query->message->chat->id == config_.storageChatId) {
             return;
         }
 
@@ -291,7 +320,13 @@ void TelegramBotApp::setupCallbacks() {
         }
         cb.data = query->data;
 
-        router_->onCallbackQuery(cb);
+        threadPool_.enqueue([this, cb]() {
+            try {
+                router_->onCallbackQuery(cb);
+            } catch (const std::exception& e) {
+                std::cerr << "[TelegramBotApp] Исключение в пуле потоков (onCallbackQuery): " << e.what() << "\n";
+            }
+        });
     });
 }
 
@@ -365,6 +400,7 @@ void TelegramBotApp::run() {
  */
 void TelegramBotApp::stop() {
     isRunning_ = false;
+    threadPool_.shutdown();
 }
 
 /**

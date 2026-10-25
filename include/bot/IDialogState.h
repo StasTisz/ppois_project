@@ -124,6 +124,35 @@ public:
         (void)movie;
         return "";
     }
+
+    /**
+     * @brief Возвращает идентификатор чата-хранилища для предварительного кэширования медиа.
+     * @return ID чата Telegram (0, если хранилище не настроено).
+     */
+    [[nodiscard]] virtual int64_t getStorageChatId() const {
+        return 0;
+    }
+
+    /**
+     * @brief Кэширует полученный от Telegram file_id постера в постоянное хранилище.
+     * @param movieId Идентификатор фильма.
+     * @param fileId Строковый идентификатор медиа Telegram.
+     */
+    virtual void cachePosterFileId(int64_t movieId, const std::string& fileId) {
+        (void)movieId;
+        (void)fileId;
+    }
+
+    virtual void recordImpression(int64_t userId, int64_t movieId) {
+        (void)userId;
+        (void)movieId;
+    }
+
+    virtual void recordReaction(int64_t userId, int64_t movieId, bool isLike) {
+        (void)userId;
+        (void)movieId;
+        (void)isLike;
+    }
 };
 
 /**

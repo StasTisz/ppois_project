@@ -15,6 +15,8 @@ public:
 
     bool addRating(const core::Rating& rating) override;
     std::vector<core::Rating> getUserRatings(int64_t userId) override;
+    std::vector<core::Rating> getAllRatings() override;
+    std::vector<int64_t> getAllUserIds() override;
     std::vector<int64_t> getRatedMovieIds(int64_t userId) override;
 
     std::vector<std::string> getFavoriteGenres(int64_t userId) override;

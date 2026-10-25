@@ -50,6 +50,11 @@ void DefaultState::handleMessage(IDialogStateContext& ctx, UserSession& session,
         return;
     }
 
+    if (msg.text == "/menu") {
+        onEnter(ctx, session);
+        return;
+    }
+
     if (msg.text == "/help") {
         if (messenger) {
             messenger->sendMessageWithKeyboard(session.chatId,

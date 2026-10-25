@@ -81,7 +81,9 @@ void BrowsingRecommendationsState::handleMessage(IDialogStateContext& ctx, UserS
 void BrowsingRecommendationsState::handleCallback(IDialogStateContext& ctx, UserSession& session, const IncomingCallback& cb) {
     if (cb.data == "rec:like") {
         if (session.currentMovie) {
+            session.movieRatings[session.currentMovie->id] = 10;
             ctx.recordMovieRating(session.userId, session.currentMovie->id, 10);
+            ctx.recordReaction(session.userId, session.currentMovie->id, true);
             session.lastActionNotice = "👍 Вы отметили фильм как понравившийся (10/10)!";
         }
         showNextMovie(ctx, session);
@@ -90,7 +92,9 @@ void BrowsingRecommendationsState::handleCallback(IDialogStateContext& ctx, User
 
     if (cb.data == "rec:dislike") {
         if (session.currentMovie) {
+            session.movieRatings[session.currentMovie->id] = 1;
             ctx.recordMovieRating(session.userId, session.currentMovie->id, 1);
+            ctx.recordReaction(session.userId, session.currentMovie->id, false);
             session.lastActionNotice = "👎 Вы отметили фильм как непонравившийся (1/10).";
         }
         showNextMovie(ctx, session);
@@ -163,6 +167,7 @@ void BrowsingRecommendationsState::showNextMovie(IDialogStateContext& ctx, UserS
     }
 
     session.currentMovie = nextMovie;
+    ctx.recordImpression(session.userId, nextMovie->id);
 
     if (!messenger) {
         return;

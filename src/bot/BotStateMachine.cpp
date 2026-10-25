@@ -104,6 +104,7 @@ void BotStateMachine::registerState(std::shared_ptr<IDialogState> state) {
 }
 
 UserSession& BotStateMachine::getSession(int64_t userId, int64_t chatId, const std::string& username) {
+    std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
     auto it = sessions_.find(userId);
     if (it != sessions_.end()) {
         if (chatId != 0) {
@@ -149,6 +150,7 @@ UserSession& BotStateMachine::getSession(int64_t userId, int64_t chatId, const s
 }
 
 void BotStateMachine::transitionTo(int64_t userId, BotState newState) {
+    std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
     auto& session = getSession(userId);
     session.state = newState;
 
@@ -204,6 +206,7 @@ void BotStateMachine::recordMovieRating(int64_t userId, int64_t movieId, int sco
 }
 
 std::optional<core::Movie> BotStateMachine::fetchNextMovie(int64_t userId) {
+    std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
     if (movieProvider_) {
         return movieProvider_(userId);
     }
@@ -412,11 +415,17 @@ CommandDispatcher& BotStateMachine::getCommandDispatcher() {
 }
 
 void BotStateMachine::setMovieProvider(MovieProvider provider) {
+    std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
     movieProvider_ = std::move(provider);
 }
 
 void BotStateMachine::processMessage(const IncomingMessage& msg) {
+    std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
     if (msg.text.empty()) {
+        return;
+    }
+
+    if (storageChatId_ != 0 && msg.chatId == storageChatId_) {
         return;
     }
 
@@ -435,6 +444,10 @@ void BotStateMachine::processMessage(const IncomingMessage& msg) {
 }
 
 void BotStateMachine::processCallback(const IncomingCallback& cb) {
+    std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
+    if (storageChatId_ != 0 && cb.chatId == storageChatId_) {
+        return;
+    }
     auto& session = getSession(cb.userId, cb.chatId);
     auto it = states_.find(session.state);
     if (it != states_.end() && it->second) {
@@ -449,6 +462,14 @@ void BotStateMachine::attachToRouter(BotEventRouter& router) {
     router.setCallbackHandler([this](const IncomingCallback& cb) {
         processCallback(cb);
     });
+}
+
+
+void BotStateMachine::cachePosterFileId(int64_t movieId, const std::string& fileId) {
+    std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
+    if (posterCacheCallback_) {
+        posterCacheCallback_(movieId, fileId);
+    }
 }
 
 } // namespace bot

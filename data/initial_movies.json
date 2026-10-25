@@ -9,7 +9,8 @@
         "director": "Frank Darabont",
         "description": "Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency.",
         "rating_avg": 9.3,
-        "poster_url": "https://image.tmdb.org/t/p/w500/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=PLl99DlL6b4"
     },
     {
         "id": 2,
@@ -22,7 +23,8 @@
         "director": "Francis Ford Coppola",
         "description": "The aging patriarch of an organized crime dynasty transfers control of his clandestine empire to his reluctant son.",
         "rating_avg": 9.2,
-        "poster_url": "https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=sY1S349g3dc"
     },
     {
         "id": 3,
@@ -36,7 +38,8 @@
         "director": "Christopher Nolan",
         "description": "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.",
         "rating_avg": 9.0,
-        "poster_url": "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=EXeTwQWrcwY"
     },
     {
         "id": 4,
@@ -49,7 +52,8 @@
         "director": "Quentin Tarantino",
         "description": "The lives of two mob hitmen, a boxer, a gangster and his wife, and a pair of diner bandits intertwine in four tales of violence and redemption.",
         "rating_avg": 8.9,
-        "poster_url": "https://image.tmdb.org/t/p/w500/vQWk5YBFWF4bZaofAbv0tShwBvQ.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/vQWk5YBFWF4bZaofAbv0tShwBvQ.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=s7EdQ4FqbhY"
     },
     {
         "id": 5,
@@ -63,7 +67,8 @@
         "director": "Christopher Nolan",
         "description": "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
         "rating_avg": 8.8,
-        "poster_url": "https://image.tmdb.org/t/p/w500/xlaY2zyzMfkhk0HSC5VUwzoZPU1.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/xlaY2zyzMfkhk0HSC5VUwzoZPU1.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=YoHD9XEInc0"
     },
     {
         "id": 6,
@@ -75,7 +80,8 @@
         "director": "David Fincher",
         "description": "An insomniac office worker and a devil-may-care soap maker form an underground fight club that evolves into much more.",
         "rating_avg": 8.8,
-        "poster_url": "https://image.tmdb.org/t/p/w500/jSziioSwPVrOy9Yow3XhWIBDjq1.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/jSziioSwPVrOy9Yow3XhWIBDjq1.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=qtRKDV93gkQ"
     },
     {
         "id": 7,
@@ -88,7 +94,8 @@
         "director": "Robert Zemeckis",
         "description": "The history of the United States from the 1950s to the '70s unfolds from the perspective of an Alabama man with an IQ of 75.",
         "rating_avg": 8.8,
-        "poster_url": "https://image.tmdb.org/t/p/w500/saHP97rTPS5eLmrLQEcANmKrsFl.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/saHP97rTPS5eLmrLQEcANmKrsFl.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=bLvqoHBptjg"
     },
     {
         "id": 8,
@@ -101,7 +108,8 @@
         "director": "Lana Wachowski, Lilly Wachowski",
         "description": "When a beautiful stranger leads computer hacker Neo to a forbidding underworld, he discovers the shocking truth--the life he knows is the elaborate deception of an evil cyber-intelligence.",
         "rating_avg": 8.7,
-        "poster_url": "https://image.tmdb.org/t/p/w500/dXNAPwY7VrqMAo51EKhhCJfaGb5.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/dXNAPwY7VrqMAo51EKhhCJfaGb5.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=vKQi3bBA1y8"
     },
     {
         "id": 9,
@@ -115,7 +123,8 @@
         "director": "Martin Scorsese",
         "description": "The story of Henry Hill and his life in the mafia, covering his relationship with his wife Karen and his mob partners Jimmy Conway and Tommy DeVito.",
         "rating_avg": 8.7,
-        "poster_url": "https://image.tmdb.org/t/p/w500/9OkCLM73MIU2CrKZbqiT8Ln1wY2.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/9OkCLM73MIU2CrKZbqiT8Ln1wY2.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=V75dMMIW2B4"
     },
     {
         "id": 10,
@@ -129,7 +138,8 @@
         "director": "Christopher Nolan",
         "description": "When Earth becomes uninhabitable in the future, a farmer and ex-NASA pilot, Joseph Cooper, is tasked to pilot a spacecraft, along with a team of researchers, to find a new planet for humans.",
         "rating_avg": 8.7,
-        "poster_url": "https://image.tmdb.org/t/p/w500/yQvGrMoipbRoddT0ZR8tPoR7NfX.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/yQvGrMoipbRoddT0ZR8tPoR7NfX.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=zSWdZVtXT7E"
     },
     {
         "id": 11,
@@ -143,7 +153,8 @@
         "director": "Hayao Miyazaki",
         "description": "During her family's move to the suburbs, a sullen 10-year-old girl wanders into a world ruled by gods, witches and spirits, a world where humans are changed into beasts.",
         "rating_avg": 8.6,
-        "poster_url": "https://image.tmdb.org/t/p/w500/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=2ilzidi_J8Q"
     },
     {
         "id": 12,
@@ -156,7 +167,8 @@
         "director": "Bong Joon Ho",
         "description": "Greed and class discrimination threaten the newly formed symbiotic relationship between the wealthy Park family and the destitute Kim clan.",
         "rating_avg": 8.5,
-        "poster_url": "https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=gG22XNhtnoY"
     },
     {
         "id": 13,
@@ -170,7 +182,8 @@
         "director": "Frank Darabont",
         "description": "A tale set on death row in a Southern jail, where gentle giant John Coffey possesses the mysterious power to heal people's ailments.",
         "rating_avg": 8.6,
-        "poster_url": "https://image.tmdb.org/t/p/w500/8VG8fDNiy50H4FedGwdSVUPoaJe.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/8VG8fDNiy50H4FedGwdSVUPoaJe.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=8hP9D6kZseM"
     },
     {
         "id": 14,
@@ -184,7 +197,8 @@
         "director": "Ridley Scott",
         "description": "A former Roman General sets out to exact vengeance against the corrupt emperor who murdered his family and sent him into slavery.",
         "rating_avg": 8.5,
-        "poster_url": "https://image.tmdb.org/t/p/w500/aDb548BOkFfI4nFm0kx8A3Ezh7H.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/aDb548BOkFfI4nFm0kx8A3Ezh7H.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=4OiMOHRDs14"
     },
     {
         "id": 15,
@@ -198,7 +212,8 @@
         "director": "Roger Allers, Rob Minkoff",
         "description": "Lion prince Simba and his father are targeted by his bitter uncle, who wants to ascend the throne himself.",
         "rating_avg": 8.5,
-        "poster_url": "https://image.tmdb.org/t/p/w500/sKCr78MXSLixwmZ8DyJLrpMsd15.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/sKCr78MXSLixwmZ8DyJLrpMsd15.jpg",
+        "trailer_url": "https://www.youtube.com/watch?v=r5X-hFf6Bwo"
     },
     {
         "id": 16,
@@ -212,7 +227,8 @@
         "director": "Martin Scorsese",
         "description": "An undercover cop and a mole in the police attempt to identify each other while infiltrating an Irish gang in South Boston.",
         "rating_avg": 8.5,
-        "poster_url": "https://image.tmdb.org/t/p/w500/nT97ifVT2J1yMQmeq20Qblg61T.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/nT97ifVT2J1yMQmeq20Qblg61T.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=The+Departed+trailer"
     },
     {
         "id": 17,
@@ -225,7 +241,8 @@
         "director": "Damien Chazelle",
         "description": "A promising young drummer enrolls at a cut-throat music conservatory where his dreams of greatness are mentored by an instructor who will stop at nothing to realize a student's potential.",
         "rating_avg": 8.5,
-        "poster_url": "https://image.tmdb.org/t/p/w500/7fn624j5lj3xTme2SgiLCeuedmO.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/7fn624j5lj3xTme2SgiLCeuedmO.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Whiplash+trailer"
     },
     {
         "id": 18,
@@ -239,7 +256,8 @@
         "director": "Christopher Nolan",
         "description": "After a tragic accident, two stage magicians in 1890s London engage in a battle to create the ultimate illusion while sacrificing everything they have to outwit each other.",
         "rating_avg": 8.5,
-        "poster_url": "https://image.tmdb.org/t/p/w500/Ag2B2KHKQPukjH7WutmgnnSNurZ.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/Ag2B2KHKQPukjH7WutmgnnSNurZ.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=The+Prestige+trailer"
     },
     {
         "id": 19,
@@ -252,7 +270,8 @@
         "director": "Ridley Scott",
         "description": "The crew of a commercial spacecraft encounters a deadly lifeform after investigating a mysterious transmission of unknown origin.",
         "rating_avg": 8.5,
-        "poster_url": "https://image.tmdb.org/t/p/w500/vfrQk5IPloGg1v9Rzbh2Eg3VGyM.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/vfrQk5IPloGg1v9Rzbh2Eg3VGyM.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Alien+trailer"
     },
     {
         "id": 20,
@@ -266,7 +285,8 @@
         "director": "Alfred Hitchcock",
         "description": "A Phoenix secretary embezzles $40,000 from her employer's client, goes on the run and checks into a remote motel run by a young man under the domination of his mother.",
         "rating_avg": 8.5,
-        "poster_url": "https://image.tmdb.org/t/p/w500/yz4QVqPx3h1hD1DfqqQkCq3rmxW.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/yz4QVqPx3h1hD1DfqqQkCq3rmxW.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Psycho+trailer"
     },
     {
         "id": 21,
@@ -279,7 +299,8 @@
         "director": "Stanley Kubrick",
         "description": "A family heads to an isolated hotel for the winter where a sinister presence influences the father into violence.",
         "rating_avg": 8.4,
-        "poster_url": "https://image.tmdb.org/t/p/w500/uAR0AWqhQL1hQa69UDEbb2rE5Wx.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/uAR0AWqhQL1hQa69UDEbb2rE5Wx.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=The+Shining+trailer"
     },
     {
         "id": 22,
@@ -292,7 +313,8 @@
         "director": "Quentin Tarantino",
         "description": "With the help of a German bounty-hunter, a freed slave sets out to rescue his wife from a brutal Mississippi plantation owner.",
         "rating_avg": 8.5,
-        "poster_url": "https://image.tmdb.org/t/p/w500/7oWY8VDWW7thTzWh3OKYRkWUlD5.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/7oWY8VDWW7thTzWh3OKYRkWUlD5.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Django+Unchained+trailer"
     },
     {
         "id": 23,
@@ -306,7 +328,8 @@
         "director": "Andrew Stanton",
         "description": "In the distant future, a small waste-collecting robot inadvertently embarks on a space journey that will ultimately decide the fate of mankind.",
         "rating_avg": 8.4,
-        "poster_url": "https://image.tmdb.org/t/p/w500/pJfm3EggGLZToce08Obf7HQHXrP.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/pJfm3EggGLZToce08Obf7HQHXrP.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=WALL-E+trailer"
     },
     {
         "id": 24,
@@ -320,7 +343,8 @@
         "director": "Anthony Russo, Joe Russo",
         "description": "The Avengers and their allies must be willing to sacrifice all in an attempt to defeat the powerful Thanos before his blitz of devastation and ruin puts an end to the universe.",
         "rating_avg": 8.4,
-        "poster_url": "https://image.tmdb.org/t/p/w500/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Avengers:+Infinity+War+trailer"
     },
     {
         "id": 25,
@@ -334,7 +358,8 @@
         "director": "Lee Unkrich, Adrian Molina",
         "description": "Aspiring musician Miguel, confronted with his family's ancestral ban on music, enters the Land of the Dead to find his great-great-grandfather, a legendary singer.",
         "rating_avg": 8.4,
-        "poster_url": "https://image.tmdb.org/t/p/w500/6Ryitt95xrO8KXuqRGm1fUuNwqF.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/6Ryitt95xrO8KXuqRGm1fUuNwqF.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Coco+trailer"
     },
     {
         "id": 26,
@@ -347,7 +372,8 @@
         "director": "Jean-Pierre Jeunet",
         "description": "Despite being caught in her imaginative world, Amelie, a young waitress, decides to help people find happiness. Her quest to spread joy leads her on a journey where she finds love herself.",
         "rating_avg": 8.3,
-        "poster_url": "https://image.tmdb.org/t/p/w500/nSxDa3M9aMvGVLoItzWTepQ5h5d.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/nSxDa3M9aMvGVLoItzWTepQ5h5d.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Amelie+trailer"
     },
     {
         "id": 27,
@@ -360,7 +386,8 @@
         "director": "Gus Van Sant",
         "description": "Will Hunting, a janitor at M.I.T., has a gift for mathematics, but needs help from a psychologist to find direction in his life.",
         "rating_avg": 8.3,
-        "poster_url": "https://image.tmdb.org/t/p/w500/z2FnLKpFi1HPO7BEJxdkv6hpJSU.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/z2FnLKpFi1HPO7BEJxdkv6hpJSU.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Good+Will+Hunting+trailer"
     },
     {
         "id": 28,
@@ -374,7 +401,8 @@
         "director": "John Lasseter",
         "description": "A cowboy doll is profoundly threatened and jealous when a new spaceman action figure supplants him as top toy in a boy's bedroom.",
         "rating_avg": 8.3,
-        "poster_url": "https://image.tmdb.org/t/p/w500/uXDfjJbdP4ijW5hWSBrPrlKpxab.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/uXDfjJbdP4ijW5hWSBrPrlKpxab.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Toy+Story+trailer"
     },
     {
         "id": 29,
@@ -388,7 +416,8 @@
         "director": "Quentin Tarantino",
         "description": "In Nazi-occupied France during World War II, a plan to assassinate Nazi leaders by a group of Jewish U.S. soldiers coincides with a theatre owner's vengeful plans for the same.",
         "rating_avg": 8.3,
-        "poster_url": "https://image.tmdb.org/t/p/w500/aupnPtagH9JVBuMrGEanf4iqXEQ.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/aupnPtagH9JVBuMrGEanf4iqXEQ.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Inglourious+Basterds+trailer"
     },
     {
         "id": 30,
@@ -402,7 +431,8 @@
         "director": "Michel Gondry",
         "description": "When their relationship turns sour, a couple undergoes a medical procedure to have each other erased from their memories for ever.",
         "rating_avg": 8.3,
-        "poster_url": "https://image.tmdb.org/t/p/w500/5MwkWH9tYHv3mV9OdYTMR5qreIz.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/5MwkWH9tYHv3mV9OdYTMR5qreIz.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Eternal+Sunshine+of+the+Spotless+Mind+trailer"
     },
     {
         "id": 31,
@@ -415,7 +445,8 @@
         "director": "Peter Weir",
         "description": "An insurance salesman discovers his whole life is actually a reality TV show on air since his birth, and he is the unwitting star.",
         "rating_avg": 8.2,
-        "poster_url": "https://image.tmdb.org/t/p/w500/vuza0WqY239yBXOadKlGwJsZJFE.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/vuza0WqY239yBXOadKlGwJsZJFE.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=The+Truman+Show+trailer"
     },
     {
         "id": 32,
@@ -429,7 +460,8 @@
         "director": "Steven Spielberg",
         "description": "A pragmatic paleontologist touring an almost complete theme park on an island in Central America is tasked with protecting a couple of kids after a power failure causes the park's cloned dinosaurs to run loose.",
         "rating_avg": 8.2,
-        "poster_url": "https://image.tmdb.org/t/p/w500/d9mtMGQDLANKieb9PbD3yK7xxzo.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/d9mtMGQDLANKieb9PbD3yK7xxzo.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Jurassic+Park+trailer"
     },
     {
         "id": 33,
@@ -443,7 +475,8 @@
         "director": "Ethan Coen, Joel Coen",
         "description": "Violence and mayhem ensue after a hunter stumbles upon a drug deal gone wrong and more than two million dollars in cash near the Rio Grande.",
         "rating_avg": 8.2,
-        "poster_url": "https://image.tmdb.org/t/p/w500/6d5XOczc226jECq0LIX0siKtgHR.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/6d5XOczc226jECq0LIX0siKtgHR.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=No+Country+for+Old+Men+trailer"
     },
     {
         "id": 34,
@@ -457,7 +490,8 @@
         "director": "Wes Anderson",
         "description": "A writer encounters the owner of an aging high-class hotel, who tells him of his early years serving as a lobby boy in the hotel's glorious years under an exceptional concierge.",
         "rating_avg": 8.1,
-        "poster_url": "https://image.tmdb.org/t/p/w500/eWdyYQreja6JGCzqHWXpWHDrrPo.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/eWdyYQreja6JGCzqHWXpWHDrrPo.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=The+Grand+Budapest+Hotel+trailer"
     },
     {
         "id": 35,
@@ -471,7 +505,8 @@
         "director": "Damien Chazelle",
         "description": "While navigating their careers in Los Angeles, a pianist and an actress fall in love while attempting to reconcile their aspirations for the future.",
         "rating_avg": 8.0,
-        "poster_url": "https://image.tmdb.org/t/p/w500/uDO8zWDhfWwoFdKS4fzkUJt0Rf0.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/uDO8zWDhfWwoFdKS4fzkUJt0Rf0.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=La+La+Land+trailer"
     },
     {
         "id": 36,
@@ -484,7 +519,8 @@
         "director": "Ron Howard",
         "description": "After John Nash, a brilliant but asocial mathematician, accepts secret work in cryptography, his life takes a turn for the nightmarish.",
         "rating_avg": 8.2,
-        "poster_url": "https://image.tmdb.org/t/p/w500/rEIg5yJdNOt9fmX4P8gU9LeNoTQ.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/rEIg5yJdNOt9fmX4P8gU9LeNoTQ.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=A+Beautiful+Mind+trailer"
     },
     {
         "id": 37,
@@ -498,7 +534,8 @@
         "director": "Jonathan Demme",
         "description": "A young F.B.I. cadet must receive the help of an incarcerated and manipulative cannibal killer to help catch another serial killer, a madman who skins his victims.",
         "rating_avg": 8.6,
-        "poster_url": "https://image.tmdb.org/t/p/w500/uS9m8OBk1A8eM9I042bx8XXpqAq.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/uS9m8OBk1A8eM9I042bx8XXpqAq.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=The+Silence+of+the+Lambs+trailer"
     },
     {
         "id": 38,
@@ -512,7 +549,8 @@
         "director": "David Fincher",
         "description": "Two detectives, a rookie and a veteran, hunt a serial killer who uses the seven deadly sins as his motives.",
         "rating_avg": 8.6,
-        "poster_url": "https://image.tmdb.org/t/p/w500/191nKfP0ehp3uIvWqgPbFmI4lv9.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/191nKfP0ehp3uIvWqgPbFmI4lv9.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Se7en+trailer"
     },
     {
         "id": 39,
@@ -526,7 +564,8 @@
         "director": "Martin Scorsese",
         "description": "Based on the true story of Jordan Belfort, from his rise to a wealthy stock-broker living the high life to his fall involving crime, corruption and the federal government.",
         "rating_avg": 8.2,
-        "poster_url": "https://image.tmdb.org/t/p/w500/kW9LmvYHAaS9iA0tHmZVq8hQYoq.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/kW9LmvYHAaS9iA0tHmZVq8hQYoq.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=The+Wolf+of+Wall+Street+trailer"
     },
     {
         "id": 40,
@@ -539,7 +578,8 @@
         "director": "Martin Scorsese",
         "description": "In 1954, a U.S. Marshal investigates the disappearance of a murderer who escaped from a hospital for the criminally insane.",
         "rating_avg": 8.2,
-        "poster_url": "https://image.tmdb.org/t/p/w500/nrmXQ0zcZUL8jFLrakWc90IR8z9.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/nrmXQ0zcZUL8jFLrakWc90IR8z9.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Shutter+Island+trailer"
     },
     {
         "id": 41,
@@ -552,7 +592,8 @@
         "director": "Christopher Nolan",
         "description": "A man with short-term memory loss attempts to track down his wife's murderer.",
         "rating_avg": 8.4,
-        "poster_url": "https://image.tmdb.org/t/p/w500/nzlv62aC0octS5AklAiWpXLX9Z0.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/nzlv62aC0octS5AklAiWpXLX9Z0.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Memento+trailer"
     },
     {
         "id": 42,
@@ -566,7 +607,8 @@
         "director": "Olivier Nakache, Éric Toledano",
         "description": "After he becomes a quadriplegic from a paragliding accident, an aristocrat hires a young man from the projects to be his caregiver.",
         "rating_avg": 8.5,
-        "poster_url": "https://image.tmdb.org/t/p/w500/1QU7HKgsQbGpzsJbJK4pAVQV9F5.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/1QU7HKgsQbGpzsJbJK4pAVQV9F5.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=The+Intouchables+trailer"
     },
     {
         "id": 43,
@@ -580,7 +622,8 @@
         "director": "Bob Persichetti, Peter Ramsey, Rodney Rothman",
         "description": "Teen Miles Morales becomes the new Spider-Man and joins other Spider-Heroes from various parallel universes to save their worlds.",
         "rating_avg": 8.4,
-        "poster_url": "https://image.tmdb.org/t/p/w500/iiZZdoQBEYBv6id8su7ImL0oCbD.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/iiZZdoQBEYBv6id8su7ImL0oCbD.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Spider-Man:+Into+the+Spider-Verse+trailer"
     },
     {
         "id": 44,
@@ -594,7 +637,8 @@
         "director": "Park Chan-wook",
         "description": "After being kidnapped and imprisoned for fifteen years, Oh Dae-Su is released, only to find that he must find his captor in five days.",
         "rating_avg": 8.4,
-        "poster_url": "https://image.tmdb.org/t/p/w500/pWDtjs568ZfOTMbURQBYuT4Qxka.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/pWDtjs568ZfOTMbURQBYuT4Qxka.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Oldboy+trailer"
     },
     {
         "id": 45,
@@ -608,7 +652,8 @@
         "director": "John Carpenter",
         "description": "A research team in Antarctica is hunted by a shape-shifting alien that assumes the appearance of its victims.",
         "rating_avg": 8.2,
-        "poster_url": "https://image.tmdb.org/t/p/w500/tzGY49kseSE9QAKk47uuDGwnSCu.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/tzGY49kseSE9QAKk47uuDGwnSCu.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=The+Thing+trailer"
     },
     {
         "id": 46,
@@ -622,7 +667,8 @@
         "director": "George Miller",
         "description": "In a post-apocalyptic wasteland, a woman rebels against a tyrannical ruler in search for her homeland with the aid of a group of female prisoners, a psychotic worshiper, and a drifter named Max.",
         "rating_avg": 8.1,
-        "poster_url": "https://image.tmdb.org/t/p/w500/ulcAi4dKpAjHwYGS08vNyx9H6I9.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/ulcAi4dKpAjHwYGS08vNyx9H6I9.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Mad+Max:+Fury+Road+trailer"
     },
     {
         "id": 47,
@@ -636,7 +682,8 @@
         "director": "Steven Spielberg",
         "description": "Barely 21 yet, Frank Abagnale, Jr. was a skilled con artist who passed himself off as a doctor, a lawyer, and a pilot, while forging checks worth millions.",
         "rating_avg": 8.1,
-        "poster_url": "https://image.tmdb.org/t/p/w500/ctjEj2xM32OvBXCq8zAdK3ZrsAj.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/ctjEj2xM32OvBXCq8zAdK3ZrsAj.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Catch+Me+If+You+Can+trailer"
     },
     {
         "id": 48,
@@ -650,7 +697,8 @@
         "director": "Pete Docter, David Silverman, Lee Unkrich",
         "description": "In order to power the city, monsters have to scare children so that they scream. However, the children are toxic to the monsters, and after a child gets through, 2 monsters realize things may not be what they think.",
         "rating_avg": 8.1,
-        "poster_url": "https://image.tmdb.org/t/p/w500/wFSpyMsp7H0ttERbxY7Trlv8xry.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/wFSpyMsp7H0ttERbxY7Trlv8xry.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Monsters,+Inc.+trailer"
     },
     {
         "id": 49,
@@ -664,7 +712,8 @@
         "director": "Mel Gibson",
         "description": "World War II American Army Medic Desmond T. Doss, who served during the Battle of Okinawa, refuses to kill people and becomes the first man in American history to receive the Medal of Honor without firing a shot.",
         "rating_avg": 8.1,
-        "poster_url": "https://image.tmdb.org/t/p/w500/fnOMP6mjmOmZwmlC1n0K7ivrzt1.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/fnOMP6mjmOmZwmlC1n0K7ivrzt1.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Hacksaw+Ridge+trailer"
     },
     {
         "id": 50,
@@ -678,7 +727,8 @@
         "director": "John Krasinski",
         "description": "In a post-apocalyptic world, a family is forced to live in silence while hiding from monsters with ultra-sensitive hearing.",
         "rating_avg": 7.5,
-        "poster_url": "https://image.tmdb.org/t/p/w500/nAU74GmpUk7t5iklEp3bufwDq4n.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/nAU74GmpUk7t5iklEp3bufwDq4n.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=A+Quiet+Place+trailer"
     },
     {
         "id": 51,
@@ -692,7 +742,8 @@
         "director": "Rian Johnson",
         "description": "A master detective investigates the death of the patriarch of an eccentric, combative family.",
         "rating_avg": 7.9,
-        "poster_url": "https://image.tmdb.org/t/p/w500/pThyQovXQrw2m0s9x82twj48Jq4.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/pThyQovXQrw2m0s9x82twj48Jq4.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Knives+Out+trailer"
     },
     {
         "id": 52,
@@ -706,7 +757,8 @@
         "director": "Denis Villeneuve",
         "description": "A noble family becomes embroiled in a war for control over the galaxy's most valuable asset while its heir becomes troubled by visions of a dark future.",
         "rating_avg": 8.0,
-        "poster_url": "https://image.tmdb.org/t/p/w500/v1tRXZ4JtD2Iv6fjkPvT4GiwslV.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/v1tRXZ4JtD2Iv6fjkPvT4GiwslV.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Dune:+Part+One+trailer"
     },
     {
         "id": 53,
@@ -720,7 +772,8 @@
         "director": "Wong Kar-wai",
         "description": "The story of martial arts master Ip Man, the man who trained Bruce Lee.",
         "rating_avg": 6.5,
-        "poster_url": "https://image.tmdb.org/t/p/w500/ydBVVIscL6TsX5hYztA5YpBCwJ3.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/ydBVVIscL6TsX5hYztA5YpBCwJ3.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=The+Grandmaster+trailer"
     },
     {
         "id": 54,
@@ -734,7 +787,8 @@
         "director": "Peter Farrelly",
         "description": "A working-class Italian-American bouncer becomes the driver for an African-American classical pianist on a tour of venues through the 1960s American South.",
         "rating_avg": 8.2,
-        "poster_url": "https://image.tmdb.org/t/p/w500/7BsvSuDQuoqhWmU2fL7W2GOcZHU.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/7BsvSuDQuoqhWmU2fL7W2GOcZHU.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Green+Book+trailer"
     },
     {
         "id": 55,
@@ -748,7 +802,8 @@
         "director": "Spike Jonze",
         "description": "In a near future, a lonely writer develops an unlikely relationship with an operating system designed to meet his every need.",
         "rating_avg": 8.0,
-        "poster_url": "https://image.tmdb.org/t/p/w500/eCOtqtfvn7mxGl6nfmq4b1exJRc.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/eCOtqtfvn7mxGl6nfmq4b1exJRc.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Her+trailer"
     },
     {
         "id": 56,
@@ -762,7 +817,8 @@
         "director": "Denis Villeneuve",
         "description": "A linguist works with the military to communicate with alien lifeforms after twelve mysterious spacecraft appear around the world.",
         "rating_avg": 7.9,
-        "poster_url": "https://image.tmdb.org/t/p/w500/pEzNVQfdzYDzVK0XqxERIw2x2se.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/pEzNVQfdzYDzVK0XqxERIw2x2se.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Arrival+trailer"
     },
     {
         "id": 57,
@@ -776,7 +832,8 @@
         "director": "Jordan Peele",
         "description": "A young African-American visits his white girlfriend's parents for the weekend, where his simmering uneasiness about their reception of him eventually reaches a boiling point.",
         "rating_avg": 7.8,
-        "poster_url": "https://image.tmdb.org/t/p/w500/tFXcEccSQMf3lfhfXKSU9iRBpa3.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/tFXcEccSQMf3lfhfXKSU9iRBpa3.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Get+Out+trailer"
     },
     {
         "id": 58,
@@ -789,7 +846,8 @@
         "director": "David Fincher",
         "description": "As Harvard student Mark Zuckerberg creates the social networking site that would become known as Facebook, he is sued by the twins who claimed he stole their idea, and by the co-founder who was later squeezed out of the business.",
         "rating_avg": 7.8,
-        "poster_url": "https://image.tmdb.org/t/p/w500/n0ybibhJtQ5icDqTp8eRytcIHJx.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/n0ybibhJtQ5icDqTp8eRytcIHJx.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=The+Social+Network+trailer"
     },
     {
         "id": 59,
@@ -803,7 +861,8 @@
         "director": "Tim Miller",
         "description": "A wisecracking mercenary gets experimented on and becomes immortal but ugly, and sets out to track down the man who ruined his looks.",
         "rating_avg": 8.0,
-        "poster_url": "https://image.tmdb.org/t/p/w500/3E53WEZJqP6aM84D8CckXx4pIHw.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/3E53WEZJqP6aM84D8CckXx4pIHw.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Deadpool+trailer"
     },
     {
         "id": 60,
@@ -817,6 +876,7 @@
         "director": "Daniel Kwan, Daniel Scheinert",
         "description": "A middle-aged Chinese immigrant is swept up into an insane adventure in which she alone can save existence by exploring other universes and connecting with the lives she could have led.",
         "rating_avg": 7.8,
-        "poster_url": "https://image.tmdb.org/t/p/w500/u68AjlvlutfEIcpmbYpKcdi09ut.jpg"
+        "poster_url": "https://image.tmdb.org/t/p/w500/u68AjlvlutfEIcpmbYpKcdi09ut.jpg",
+        "trailer_url": "https://www.youtube.com/results?search_query=Everything+Everywhere+All+at+Once+trailer"
     }
 ]
