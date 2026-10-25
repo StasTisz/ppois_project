@@ -101,7 +101,7 @@ bool TgBotMessenger::sendPhotoWithKeyboard(
     mediaConfig.maxRetries = 0;
 
     bool success = NetworkErrorHandler::executeWithRetry([this, chatId, &photoUrl, &caption, &markup]() {
-        bot_.getApi().sendPhoto(chatId, photoUrl, caption, nullptr, markup);
+        bot_.getApi().sendPhoto(chatId, photoUrl, caption, 0, markup);
     }, mediaConfig, &lastError);
 
     if (!success) {
@@ -246,6 +246,29 @@ void TelegramBotApp::run() {
                   << bot_.getApi().getMe()->username << "...\n";
     } catch (const std::exception& e) {
         std::cerr << "[TelegramBotApp] Предупреждение: не удалось получить имя бота: " << e.what() << "\n";
+    }
+
+    try {
+        std::vector<TgBot::BotCommand::Ptr> commands;
+
+        auto addCmd = [&commands](const std::string& cmd, const std::string& desc) {
+            auto c = std::make_shared<TgBot::BotCommand>();
+            c->command = cmd;
+            c->description = desc;
+            commands.push_back(c);
+        };
+
+        addCmd("start", "Запуск и выбор любимых жанров");
+        addCmd("recommend", "Подбор рекомендаций фильмов");
+        addCmd("genres", "Настройка списка любимых жанров");
+        addCmd("history", "История оценок и активный алгоритм");
+        addCmd("similar", "Поиск похожих фильмов во время просмотра");
+        addCmd("help", "Справка по возможностям бота");
+
+        bot_.getApi().setMyCommands(commands);
+        std::cout << "[TelegramBotApp] Меню команд бота успешно зарегистрировано в Telegram API.\n";
+    } catch (const std::exception& e) {
+        std::cerr << "[TelegramBotApp] Предупреждение: не удалось зарегистрировать команды: " << e.what() << "\n";
     }
 
     TgBot::TgLongPoll longPoll(bot_, 100, config_.longPollTimeoutSeconds);

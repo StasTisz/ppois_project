@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <string>
+#include <vector>
 
 /**
  * @file BotConfig.h
@@ -35,9 +37,29 @@ struct BotConfig {
     std::string seedJsonPath{"data/initial_movies.json"};
 
     /**
+     * @brief Находит существующие пути к файлам данных при запуске из вложенных папок сборки (CLion / VS).
+     */
+    void resolveDataPaths() {
+        namespace fs = std::filesystem;
+        if (fs::exists(seedJsonPath)) {
+            return;
+        }
+
+        const std::vector<std::string> prefixes = {"../", "../../", "../../../"};
+        for (const auto& prefix : prefixes) {
+            std::string candidateSeed = prefix + seedJsonPath;
+            if (fs::exists(candidateSeed)) {
+                seedJsonPath = candidateSeed;
+                dbPath = prefix + dbPath;
+                return;
+            }
+        }
+    }
+
+    /**
      * @brief Фабричный метод, считывающий конфигурацию из переменных окружения или файла .env.
-     * Сначала проверяет `BOT_TOKEN`, затем `TELEGRAM_BOT_TOKEN`, затем локальный файл `.env`.
-     * @return Инициализированный объект BotConfig.
+     * Сначала проверяет `BOT_TOKEN`, затем `TELEGRAM_BOT_TOKEN`, затем файл `.env` в текущей и родительских папках.
+     * @return Инициализированный объект BotConfig с разрешенными путями к данным.
      */
     static BotConfig fromEnv() {
         BotConfig config;
@@ -49,10 +71,24 @@ struct BotConfig {
             config.token = tokenEnv;
         }
 
-        // Если переменная окружения не задана, пробуем считать из локального файла .env
+        // Если переменная окружения не задана, пробуем считать из .env (включая поиск вверх по дереву)
         if (config.token.empty()) {
-            std::ifstream envFile(".env");
-            if (envFile.is_open()) {
+            const std::vector<std::string> envCandidates = {
+                ".env",
+                "../.env",
+                "../../.env",
+                "../../../.env"
+            };
+
+            for (const auto& envPath : envCandidates) {
+                if (!std::filesystem::exists(envPath)) {
+                    continue;
+                }
+                std::ifstream envFile(envPath);
+                if (!envFile.is_open()) {
+                    continue;
+                }
+
                 std::string line;
                 while (std::getline(envFile, line)) {
                     while (!line.empty() && (line.front() == ' ' || line.front() == '\t')) {
@@ -82,9 +118,14 @@ struct BotConfig {
                         }
                     }
                 }
+
+                if (!config.token.empty()) {
+                    break;
+                }
             }
         }
 
+        config.resolveDataPaths();
         return config;
     }
 

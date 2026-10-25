@@ -1,7 +1,13 @@
 #include <iostream>
 #include <string>
 #include <cstdlib>
+#include <csignal>
+#include <filesystem>
 #include <memory>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include "repository/DatabaseManager.h"
 #include "repository/SQLiteMovieRepository.h"
@@ -19,17 +25,48 @@
  * и запускает цикл опроса Telegram Bot API (long-polling).
  */
 
+namespace {
+
+bot::TelegramBotApp* g_runningApp = nullptr;
+
+void handleSignal(int signal) {
+    if (signal == SIGINT) {
+        std::cout << "\n[INFO] Получен сигнал прерывания (SIGINT / Ctrl+C). Корректная остановка бота...\n";
+        if (g_runningApp) {
+            g_runningApp->stop();
+        }
+    }
+}
+
+} // namespace
+
 /**
  * @brief Главная функция программы.
  * @return 0 при успешном запуске и выполнении либо штатном выходе при отсутствии токена; 1 при фатальной ошибке.
  */
 int main() {
+#ifdef _WIN32
+    // Настройка кодировки UTF-8 в консоли Windows для корректного отображения кириллицы
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+#endif
+
+    std::signal(SIGINT, handleSignal);
+
     std::cout << "========================================\n";
     std::cout << " Movie Recommendation Telegram Bot (C++)\n";
     std::cout << " Full Integration: Core + Bot Layer     \n";
     std::cout << "========================================\n\n";
 
     bot::BotConfig config = bot::BotConfig::fromEnv();
+
+    // Создаем родительскую директорию для базы данных при её отсутствии
+    namespace fs = std::filesystem;
+    fs::path dbFilePath(config.dbPath);
+    if (dbFilePath.has_parent_path() && !dbFilePath.parent_path().empty()) {
+        std::error_code ec;
+        fs::create_directories(dbFilePath.parent_path(), ec);
+    }
 
     std::cout << "[DB] Инициализация базы данных SQLite: " << config.dbPath << " ...\n";
     repository::DatabaseManager dbManager;
@@ -66,9 +103,12 @@ int main() {
     std::cout << "[INFO] Инициализация TelegramBotApp с RecommendationService и базой данных SQLite...\n";
     try {
         bot::TelegramBotApp app(config, recService, userRepo);
+        g_runningApp = &app;
         app.run();
+        g_runningApp = nullptr;
     } catch (const std::exception& e) {
         std::cerr << "[FATAL] Необработанное исключение в TelegramBotApp: " << e.what() << "\n";
+        g_runningApp = nullptr;
         return 1;
     }
 

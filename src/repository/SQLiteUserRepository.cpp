@@ -36,8 +36,11 @@ std::optional<core::User> SQLiteUserRepository::getById(int64_t telegramId) {
 bool SQLiteUserRepository::saveUser(const core::User& user) {
     if (!db_) return false;
 
-    const char* sql = "INSERT OR REPLACE INTO users (telegram_id, username, state_id, created_at) "
-                      "VALUES (?, ?, ?, ?);";
+    const char* sql = "INSERT INTO users (telegram_id, username, state_id, created_at) "
+                      "VALUES (?, ?, ?, ?) "
+                      "ON CONFLICT(telegram_id) DO UPDATE SET "
+                      "username = excluded.username, "
+                      "state_id = excluded.state_id;";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
         return false;

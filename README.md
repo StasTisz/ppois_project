@@ -105,7 +105,9 @@ ppois_project/
 
 ---
 
-## 🛠️ Инструкция по сборке в Visual Studio
+## 🛠️ Инструкции по сборке и запуску
+
+### 💻 Windows (Visual Studio 2022)
 
 1. **Клонировать репозиторий**:
    ```bash
@@ -114,9 +116,30 @@ ppois_project/
 2. **Открыть в Visual Studio**:
    * Запустите Visual Studio.
    * Выберите **«Открыть локальную папку» (Open Folder)** и укажите папку `ppois_project`.
-   * Visual Studio автоматически обнаружит `vcpkg.json` и `CMakeLists.txt`.
+   * Visual Studio автоматически обнаружит `vcpkg.json`, `CMakePresets.json` и `CMakeLists.txt`.
    * Встроенный vcpkg автоматически восстановит зависимости (`tgbot-cpp`, `sqlite3`, `nlohmann-json`, `gtest`).
 3. **Сборка и запуск**:
-   * В верхнем меню выберите конфигурацию `x64-Debug`.
+   * В верхнем меню выберите конфигурацию `x64-Debug` (или `x64-Release`).
    * Выберите цель сборки `movie_rec_bot.exe` и нажмите **F5** (Запуск с отладкой) или **Ctrl+F5**.
    * Запуск тестов: меню `Тест` -> `Обозреватель тестов` (Test Explorer).
+
+---
+
+### 🍏 macOS (CLion / Терминал)
+
+1. **Установка зависимостей через vcpkg**:
+   ```bash
+   # Задайте путь к установленному vcpkg
+   export VCPKG_ROOT="$HOME/vcpkg"
+   ```
+2. **Открыть в CLion**:
+   * Запустите CLion и откройте директорию проекта `ppois_project`.
+   * В настройках `Settings` -> `Build, Execution, Deployment` -> `CMake` выберите пресет `macos-debug` или добавьте аргумент тулчейна:
+     `-DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake`
+3. **Сборка и запуск в Терминале**:
+   ```bash
+   cmake --preset macos-debug
+   cmake --build build/macos-debug -j8
+   ctest --test-dir build/macos-debug --output-on-failure
+   ./build/macos-debug/movie_rec_bot
+   ```

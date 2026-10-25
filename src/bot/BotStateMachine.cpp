@@ -154,14 +154,6 @@ void BotStateMachine::transitionTo(int64_t userId, BotState newState) {
     if (userRepo_) {
         int64_t nowSec = static_cast<int64_t>(std::time(nullptr));
         userRepo_->saveUser(core::User{session.userId, session.username, static_cast<int>(newState), nowSec});
-        if (recService_) {
-            if (!session.selectedGenres.empty()) {
-                recService_->setFavoriteGenres(session.userId, session.selectedGenres);
-            }
-            for (const auto& [mId, score] : session.movieRatings) {
-                recService_->rateMovie(session.userId, mId, score);
-            }
-        }
     }
 
     auto it = states_.find(newState);
