@@ -17,6 +17,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Windows specific definitions for Boost.Asio and Winsock2 compatibility
+if(WIN32)
+    add_compile_definitions(WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0A00)
+endif()
+
 # macOS specific prefix paths for Homebrew (Apple Silicon & Intel)
 if(APPLE)
     if(EXISTS "/opt/homebrew")

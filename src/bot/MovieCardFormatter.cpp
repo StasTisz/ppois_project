@@ -142,7 +142,7 @@ void MovieCardFormatter::sendMovieCard(
 
     // 1. Попытка мгновенной отправки по уже кэшированному posterFileId (~50мс)
     if (!movie.posterFileId.empty()) {
-        bool sent = messenger.sendPhotoWithKeyboard(chatId, movie.posterFileId, caption, keyboard);
+        bool sent = messenger.sendPhotoWithKeyboard(chatId, movie.posterFileId, caption, keyboard, nullptr);
         if (sent) {
             return;
         }

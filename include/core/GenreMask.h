@@ -67,7 +67,7 @@ inline GenreBit stringToGenreBit(std::string_view name) {
     if (equalsCi(name, "Music") || name == "Музыка" || name == "музыка") return GenreBit::Music;
     if (equalsCi(name, "Mystery") || name == "Детектив" || name == "детектив" || name == "Мистика" || name == "мистика") return GenreBit::Mystery;
     if (equalsCi(name, "Romance") || name == "Мелодрама" || name == "мелодрама" || name == "Романтика" || name == "романтика") return GenreBit::Romance;
-    if (equalsCi(name, "Sci-Fi") || equalsCi(name, "SciFi") || name == "Фантастика" || name == "фантастика") return GenreBit::SciFi;
+    if (equalsCi(name, "Sci-Fi") || equalsCi(name, "SciFi") || equalsCi(name, "Science Fiction") || name == "Фантастика" || name == "фантастика") return GenreBit::SciFi;
     if (equalsCi(name, "Thriller") || name == "Триллер" || name == "триллер") return GenreBit::Thriller;
     if (equalsCi(name, "War") || name == "Военный" || name == "военный") return GenreBit::War;
     if (equalsCi(name, "Western") || name == "Вестерн" || name == "вестерн") return GenreBit::Western;
