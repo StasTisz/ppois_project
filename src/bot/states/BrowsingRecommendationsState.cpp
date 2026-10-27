@@ -177,14 +177,24 @@ void BrowsingRecommendationsState::showNextMovie(IDialogStateContext& ctx, UserS
     std::string notice = session.lastActionNotice;
     session.lastActionNotice.clear();
 
-    std::string explanation = ctx.buildRecommendationExplanation(session.userId, *nextMovie);
+    std::string explanation = ctx.buildRecommendationExplanation(session.userId, *session.currentMovie);
     size_t ratedCount = session.movieRatings.size();
     std::string userStatus;
     if (ratedCount > 0) {
         userStatus = "📊 Оценено вами фильмов: " + std::to_string(ratedCount);
     }
 
-    MovieCardFormatter::sendMovieCard(*messenger, session.chatId, *nextMovie, keyboard, notice, explanation, userStatus);
+    MovieCardFormatter::sendMovieCard(
+        *messenger,
+        session.chatId,
+        *session.currentMovie,
+        keyboard,
+        notice,
+        explanation,
+        userStatus,
+        [&ctx](int64_t movieId, const std::string& fileId) {
+            ctx.cachePosterFileId(movieId, fileId);
+        });
 }
 
 } // namespace bot

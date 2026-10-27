@@ -117,9 +117,10 @@ void TgBotMessenger::editMessageWithKeyboard(
  * @brief Отправляет фото (постер) с подписью и inline-клавиатурой в чат Telegram.
  * При сетевой ошибке или недоступности постера автоматически выполняет fallback на sendMessageWithKeyboard.
  * @param chatId Идентификатор целевого чата.
- * @param photoUrl URL постера фильма.
+ * @param photoUrlOrFileId URL постера фильма либо Telegram file_id.
  * @param caption Описание/подпись к фильму.
  * @param keyboard Структура кнопок реакций.
+ * @param fileIdOut Указатель для получения присвоенного Telegram file_id.
  * @return true при успешной отправке фото, false если сработал fallback на текст.
  */
 bool TgBotMessenger::sendPhotoWithKeyboard(
@@ -132,10 +133,10 @@ bool TgBotMessenger::sendPhotoWithKeyboard(
     std::string lastError;
     TgBot::Message::Ptr sentMsg;
 
-    // Для внешних ссылок на фото не делаем повторных блокирующих попыток,
-    // чтобы при сетевом сбое TMDB бот не зависал, а сразу отдавал текстовую карточку
+    // Для отправки медиа используем 1 быструю повторную попытку при кратковременных сетевых сбоях
     RetryConfig mediaConfig = retryConfig_;
-    mediaConfig.maxRetries = 0;
+    mediaConfig.maxRetries = 1;
+    mediaConfig.retryDelayMs = 250;
 
     std::string photoTarget = photoUrlOrFileId;
     auto it = photoFileIdCache_.find(photoUrlOrFileId);
@@ -144,20 +145,14 @@ bool TgBotMessenger::sendPhotoWithKeyboard(
     }
 
     bool success = NetworkErrorHandler::executeWithRetry([this, chatId, &photoTarget, &caption, &markup, &sentMsg]() {
-        sentMsg = bot_.getApi().sendPhoto(chatId, photoTarget, caption, nullptr, markup);
-        if (sentMsg && !sentMsg->photo.empty() && sentMsg->photo.back()) {
-            photoFileIdCache_[photoTarget] = sentMsg->photo.back()->fileId;
-        }
+        sentMsg = bot_.getApi().sendPhoto(chatId, photoTarget, caption, 0, markup);
     }, mediaConfig, &lastError);
 
-    // Если отправка по закэшированному file_id не удалась, пробуем повторить по исходному photoUrlOrFileId
+    // Если отправка по закэшированному file_id не удалась, пробуем отправить напрямую по исходному photoUrlOrFileId
     if (!success && photoTarget != photoUrlOrFileId) {
         photoFileIdCache_.erase(photoUrlOrFileId);
         success = NetworkErrorHandler::executeWithRetry([this, chatId, &photoUrlOrFileId, &caption, &markup, &sentMsg]() {
-            sentMsg = bot_.getApi().sendPhoto(chatId, photoUrlOrFileId, caption, nullptr, markup);
-            if (sentMsg && !sentMsg->photo.empty() && sentMsg->photo.back()) {
-                photoFileIdCache_[photoUrlOrFileId] = sentMsg->photo.back()->fileId;
-            }
+            sentMsg = bot_.getApi().sendPhoto(chatId, photoUrlOrFileId, caption, 0, markup);
         }, mediaConfig, &lastError);
     }
 
@@ -167,8 +162,12 @@ bool TgBotMessenger::sendPhotoWithKeyboard(
         return false;
     }
 
-    if (fileIdOut && sentMsg && !sentMsg->photo.empty()) {
-        *fileIdOut = sentMsg->photo.back()->fileId;
+    if (sentMsg && !sentMsg->photo.empty() && sentMsg->photo.back()) {
+        std::string obtainedId = sentMsg->photo.back()->fileId;
+        photoFileIdCache_[photoUrlOrFileId] = obtainedId;
+        if (fileIdOut) {
+            *fileIdOut = obtainedId;
+        }
     }
 
     return true;
@@ -374,8 +373,10 @@ void TelegramBotApp::run() {
         std::cerr << "[TelegramBotApp] Предупреждение: не удалось зарегистрировать команды: " << e.what() << "\n";
     }
 
-    // Запуск фонового прогрева медиа-кэша постеров в Telegram (если задан CACHE_CHANNEL_ID)
-    startMediaCacheWarmup();
+    // Автоматический массовый спам постеров в группу при старте отключен:
+    // постеры доставляются напрямую и кэшируются лениво на лету в MovieCardFormatter,
+    // что предотвращает исчерпание лимитов Telegram Bot API (HTTP 429).
+    // startMediaCacheWarmup();
 
     TgBot::TgLongPoll longPoll(bot_, 100, config_.longPollTimeoutSeconds);
     while (isRunning_) {
@@ -436,76 +437,8 @@ TgBot::Bot& TelegramBotApp::getBot() {
 }
 
 void TelegramBotApp::startMediaCacheWarmup() {
-    if (config_.cacheChatId == 0) {
-        return;
-    }
-
-    std::thread([this]() {
-        int64_t targetChatId = config_.cacheChatId;
-        // Автоматическое определение знака для обычных групп (например, 5310490407 -> -5310490407)
-        if (targetChatId > 0 && targetChatId < 1000000000000LL) {
-            try {
-                bot_.getApi().getChat(targetChatId);
-            } catch (...) {
-                try {
-                    bot_.getApi().getChat(-targetChatId);
-                    targetChatId = -targetChatId;
-                } catch (...) {}
-            }
-        }
-
-        std::cout << "[TelegramBotApp] Фоновый прогрев медиа-кэша постеров в группе: "
-                  << targetChatId << " ...\n";
-
-        std::ifstream file(config_.seedJsonPath);
-        if (!file.is_open()) {
-            return;
-        }
-
-        nlohmann::json root;
-        try {
-            file >> root;
-        } catch (...) {
-            return;
-        }
-
-        if (!root.is_array()) {
-            return;
-        }
-
-        int cachedCount = 0;
-        for (const auto& item : root) {
-            if (!isRunning_) {
-                break;
-            }
-
-            std::string title = item.value("title", "");
-            std::string posterUrl = item.value("poster_url", "");
-            if (posterUrl.empty()) {
-                continue;
-            }
-
-            if (!messenger_->getCachedPhotoFileId(posterUrl).empty()) {
-                continue;
-            }
-
-            try {
-                auto msg = bot_.getApi().sendPhoto(targetChatId, posterUrl, "🎬 " + title, 0, nullptr);
-                if (msg && !msg->photo.empty() && msg->photo.back()) {
-                    messenger_->cachePhotoFileId(posterUrl, msg->photo.back()->fileId);
-                    ++cachedCount;
-                }
-            } catch (const std::exception& e) {
-                // Игнорируем единичные сбои внешних ресурсов
-            }
-
-            // Задержка 150 мс для соблюдения ограничений Telegram Bot API
-            std::this_thread::sleep_for(std::chrono::milliseconds(150));
-        }
-
-        std::cout << "[TelegramBotApp] Фоновый прогрев медиа-кэша завершен! Новых постеров закэшировано: "
-                  << cachedCount << "\n";
-    }).detach();
+    // Сохранено для обратной совместимости вызовов.
+    // Массовый прогрев отключен в пользу прямого кэширования на лету.
 }
 
 } // namespace bot

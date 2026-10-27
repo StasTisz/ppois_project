@@ -45,12 +45,14 @@ public:
         const std::string& userStatus = "");
 
     /**
-     * @brief Отправляет карточку фильма с прямой доставкой пользователю и кэшированием poster_file_id.
+     * @brief Отправляет карточку фильма с поддержкой UI-подписей, прямой доставки пользователю и кэширования poster_file_id.
      * @param messenger Клиент отправки сообщений.
      * @param chatId Идентификатор целевого чата пользователя.
      * @param movie Объект фильма (кэширует file_id в movie.posterFileId).
      * @param keyboard Клавиатура реакций.
-     * @param storageChatId Не используется (сохранено для обратной совместимости сигнатуры).
+     * @param notice Опциональное вступительное уведомление о предыдущем действии пользователя.
+     * @param explanation Пояснение алгоритма, почему фильм рекомендован.
+     * @param userStatus Краткий статус пользователя (например, количество оцененных фильмов).
      * @param onFileIdCached Callback для сохранения полученного от Telegram file_id в базу данных.
      */
     static void sendMovieCard(
@@ -58,11 +60,24 @@ public:
         int64_t chatId,
         core::Movie& movie,
         const InlineKeyboard& keyboard,
-        int64_t storageChatId = 0,
+        const std::string& notice = "",
+        const std::string& explanation = "",
+        const std::string& userStatus = "",
         std::function<void(int64_t, const std::string&)> onFileIdCached = nullptr);
 
     /**
-     * @brief Отправляет карточку фильма в чат Telegram: фото с подписью, либо текст с клавиатурой.
+     * @brief Перегрузка для обратной совместимости тестов со storageChatId.
+     */
+    static void sendMovieCard(
+        IBotMessenger& messenger,
+        int64_t chatId,
+        core::Movie& movie,
+        const InlineKeyboard& keyboard,
+        int64_t storageChatId,
+        std::function<void(int64_t, const std::string&)> onFileIdCached = nullptr);
+
+    /**
+     * @brief Отправляет карточку фильма в чат Telegram для константного объекта фильма: фото с подписью, либо текст с клавиатурой.
      */
     static void sendMovieCard(
         IBotMessenger& messenger,

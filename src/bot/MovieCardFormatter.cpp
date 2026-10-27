@@ -134,9 +134,11 @@ void MovieCardFormatter::sendMovieCard(
     int64_t chatId,
     core::Movie& movie,
     const InlineKeyboard& keyboard,
-    int64_t /* storageChatId */,
+    const std::string& notice,
+    const std::string& explanation,
+    const std::string& userStatus,
     std::function<void(int64_t, const std::string&)> onFileIdCached) {
-    std::string caption = formatMovieCard(movie, kMaxPhotoCaptionLength);
+    std::string caption = formatMovieCard(movie, kMaxPhotoCaptionLength, notice, explanation, userStatus);
 
     // 1. Попытка мгновенной отправки по уже кэшированному posterFileId (~50мс)
     if (!movie.posterFileId.empty()) {
@@ -176,28 +178,23 @@ void MovieCardFormatter::sendMovieCard(
 void MovieCardFormatter::sendMovieCard(
     IBotMessenger& messenger,
     int64_t chatId,
+    core::Movie& movie,
+    const InlineKeyboard& keyboard,
+    int64_t /* storageChatId */,
+    std::function<void(int64_t, const std::string&)> onFileIdCached) {
+    sendMovieCard(messenger, chatId, movie, keyboard, "", "", "", std::move(onFileIdCached));
+}
+
+void MovieCardFormatter::sendMovieCard(
+    IBotMessenger& messenger,
+    int64_t chatId,
     const core::Movie& movie,
     const InlineKeyboard& keyboard,
     const std::string& notice,
     const std::string& explanation,
     const std::string& userStatus) {
-    std::string caption = formatMovieCard(movie, kMaxPhotoCaptionLength, notice, explanation, userStatus);
-
-    if (!movie.posterFileId.empty()) {
-        bool sent = messenger.sendPhotoWithKeyboard(chatId, movie.posterFileId, caption, keyboard);
-        if (sent) {
-            return;
-        }
-    }
-
-    if (hasValidPosterUrl(movie)) {
-        bool sent = messenger.sendPhotoWithKeyboard(chatId, movie.posterUrl, caption, keyboard);
-        if (!sent) {
-            messenger.sendMessageWithKeyboard(chatId, caption, keyboard);
-        }
-    } else {
-        messenger.sendMessageWithKeyboard(chatId, caption, keyboard);
-    }
+    core::Movie mutableMovie = movie;
+    sendMovieCard(messenger, chatId, mutableMovie, keyboard, notice, explanation, userStatus, nullptr);
 }
 
 } // namespace bot
