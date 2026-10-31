@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 /**
@@ -25,6 +26,8 @@ namespace bot {
  * Содержит идентификаторы пользователя и чата, текущее состояние FSM,
  * выбранные жанры, текущий фильм, историю выставленных в рамках сессии оценок
  * и множество пропущенных фильмов.
+ *
+ * Предоставляет методы инкапсуляции мутаций согласно принципу "Tell, Don't Ask".
  */
 struct UserSession {
     /// Уникальный идентификатор пользователя Telegram.
@@ -51,23 +54,15 @@ struct UserSession {
     /// Множество ID фильмов, пропущенных кнопкой «Следующий» без оценки.
     std::unordered_set<int64_t> skippedMovieIds;
 
-    /// Краткое уведомление о последнем действии пользователя (для отображения в следующей карточке).
+    /// Краткое уведомление о последнем действии пользователя (для следующей карточки).
     std::string lastActionNotice;
 
-    /**
-     * @brief Проверяет, выбран ли указанный жанр в текущей сессии.
-     * @param genre Название жанра.
-     * @return true, если жанр присутствует в selectedGenres, иначе false.
-     */
+    // --- Методы инкапсуляции работы с жанрами ---
+
     [[nodiscard]] bool hasGenre(const std::string& genre) const {
         return std::find(selectedGenres.begin(), selectedGenres.end(), genre) != selectedGenres.end();
     }
 
-    /**
-     * @brief Переключает выбор жанра (добавляет, если отсутствует, либо удаляет, если уже выбран).
-     * @param genre Название переключаемого жанра.
-     * @return true, если жанр был добавлен, false, если жанр был удален.
-     */
     bool toggleGenre(const std::string& genre) {
         auto it = std::find(selectedGenres.begin(), selectedGenres.end(), genre);
         if (it != selectedGenres.end()) {
@@ -78,21 +73,117 @@ struct UserSession {
         return true;
     }
 
-    /**
-     * @brief Отмечает фильм как пропущенный пользователем.
-     * @param movieId Идентификатор пропущенного фильма.
-     */
+    [[nodiscard]] bool hasSelectedGenres() const {
+        return !selectedGenres.empty();
+    }
+
+    [[nodiscard]] const std::vector<std::string>& getSelectedGenres() const {
+        return selectedGenres;
+    }
+
+    void setSelectedGenres(std::vector<std::string> genres) {
+        selectedGenres = std::move(genres);
+    }
+
+    void clearSelectedGenres() {
+        selectedGenres.clear();
+    }
+
+    // --- Методы инкапсуляции работы с оценками ("Tell, Don't Ask") ---
+
+    void recordRating(int64_t movieId, int score) {
+        movieRatings[movieId] = score;
+        skippedMovieIds.erase(movieId);
+    }
+
+    [[nodiscard]] bool hasRating(int64_t movieId) const {
+        return movieRatings.find(movieId) != movieRatings.end();
+    }
+
+    [[nodiscard]] std::optional<int> getRating(int64_t movieId) const {
+        auto it = movieRatings.find(movieId);
+        if (it != movieRatings.end()) {
+            return it->second;
+        }
+        return std::nullopt;
+    }
+
+    [[nodiscard]] bool hasRatings() const {
+        return !movieRatings.empty();
+    }
+
+    [[nodiscard]] size_t getRatingCount() const {
+        return movieRatings.size();
+    }
+
+    [[nodiscard]] const std::unordered_map<int64_t, int>& getMovieRatings() const {
+        return movieRatings;
+    }
+
+    void clearRatings() {
+        movieRatings.clear();
+    }
+
+    // --- Методы инкапсуляции работы с текущим фильмом ---
+
+    void setCurrentMovie(const std::optional<core::Movie>& movie) {
+        currentMovie = movie;
+    }
+
+    void clearCurrentMovie() {
+        currentMovie = std::nullopt;
+    }
+
+    [[nodiscard]] bool hasCurrentMovie() const {
+        return currentMovie.has_value();
+    }
+
+    [[nodiscard]] const std::optional<core::Movie>& getCurrentMovie() const {
+        return currentMovie;
+    }
+
+    // --- Методы инкапсуляции пропусков (Skipped) ---
+
     void markSkipped(int64_t movieId) {
         skippedMovieIds.insert(movieId);
     }
 
-    /**
-     * @brief Проверяет, был ли фильм пропущен пользователем.
-     * @param movieId Идентификатор фильма.
-     * @return true, если фильм находится в списке пропущенных.
-     */
+    void clearSkipped() {
+        skippedMovieIds.clear();
+    }
+
     [[nodiscard]] bool isSkipped(int64_t movieId) const {
         return skippedMovieIds.find(movieId) != skippedMovieIds.end();
+    }
+
+    // --- Методы уведомления о последнем действии ---
+
+    void setLastActionNotice(std::string notice) {
+        lastActionNotice = std::move(notice);
+    }
+
+    [[nodiscard]] const std::string& getLastActionNotice() const {
+        return lastActionNotice;
+    }
+
+    [[nodiscard]] std::string consumeLastActionNotice() {
+        std::string notice = std::move(lastActionNotice);
+        lastActionNotice.clear();
+        return notice;
+    }
+
+    void clearLastActionNotice() {
+        lastActionNotice.clear();
+    }
+
+    // --- Полный сброс контекста сессии ---
+
+    void resetSessionData() {
+        selectedGenres.clear();
+        currentMovie.reset();
+        movieRatings.clear();
+        skippedMovieIds.clear();
+        lastActionNotice.clear();
     }
 };
 

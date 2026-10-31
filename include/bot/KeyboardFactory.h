@@ -15,9 +15,6 @@ namespace bot {
 /**
  * @class KeyboardFactory
  * @brief Предоставляет статические методы для построения стандартных Inline-клавиатур.
- *
- * Создает клавиатуры главного меню, мультивыбора жанров (с динамическими галочками),
- * кнопок реакций под карточкой фильма и шкалы оценивания от 1 до 10.
  */
 class KeyboardFactory {
 public:
@@ -29,22 +26,12 @@ public:
 
     /**
      * @brief Создает клавиатуру главного меню.
-     *
-     * Ряды:
-     * 1: [🎬 Рекомендации (menu:recommend)] [🎭 Жанры (menu:genres)]
-     * 2: [📜 История (menu:history)] [ℹ️ Помощь (menu:help)]
-     *
      * @return Объект InlineKeyboard.
      */
     static InlineKeyboard createMainMenuKeyboard();
 
     /**
      * @brief Создает клавиатуру мультивыбора любимых жанров с динамическими галочками.
-     *
-     * Генерирует сетку жанров по 2 кнопки в ряду. Для жанров, присутствующих
-     * в `selectedGenres`, текст начинается с "✅ ", для остальных — без префикса.
-     * Последний ряд содержит кнопку "✔️ Готово" (callback: genre:confirm).
-     *
      * @param selectedGenres Список уже выбранных пользователем жанров.
      * @param availableGenres Доступные для выбора жанры (по умолчанию getDefaultGenres()).
      * @return Объект InlineKeyboard.
@@ -55,30 +42,22 @@ public:
 
     /**
      * @brief Создает клавиатуру реакций под карточкой фильма.
-     *
-     * Ряды:
-     * 1: [👍 Понравился (rec:like[:movieId])] [👎 Не понравился (rec:dislike[:movieId])]
-     * 2: [⏭ Следующий (rec:next[:movieId])] [⭐ Оценить (1-10) (rec:rate[:movieId])]
-     * 3: [🎬 Смотреть трейлер (url)] (если trailerUrl не пустой)
-     * 4: [🏠 В меню (rec:menu)]
-     *
-     * @param movieId Опциональный идентификатор фильма для защиты от кликов по старым карточкам.
-     * @param trailerUrl Опциональная ссылка на YouTube-трейлер фильма.
+     * @param movieId Идентификатор фильма для защиты от кликов по старым карточкам.
+     * @param trailerUrl Ссылка на YouTube-трейлер фильма (опционально).
      * @return Объект InlineKeyboard.
      */
     static InlineKeyboard createMovieReactionKeyboard(int64_t movieId = 0, const std::string& trailerUrl = "");
 
     /**
      * @brief Создает клавиатуру для выставления оценки фильму от 1 до 10.
-     *
-     * Ряды:
-     * 1: [1] [2] [3] [4] [5] (rate:1 .. rate:5)
-     * 2: [6] [7] [8] [9] [10] (rate:6 .. rate:10)
-     * 3: [🔙 Отмена (rate:cancel)]
-     *
      * @return Объект InlineKeyboard.
      */
     static InlineKeyboard createRatingKeyboard();
+
+private:
+    static InlineButton createGenreButton(
+        const std::string& genre, const std::vector<std::string>& selectedGenres);
+    static InlineKeyboardRow createRatingRow(int from, int to);
 };
 
 } // namespace bot

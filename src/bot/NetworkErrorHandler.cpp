@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <iostream>
+#include <string_view>
 
 /**
  * @file NetworkErrorHandler.cpp
@@ -22,44 +23,56 @@ std::string toLower(std::string_view str) {
     return result;
 }
 
+bool isMediaError(std::string_view lower) {
+    return lower.find("failed to get http url content") != std::string_view::npos ||
+           lower.find("wrong file identifier") != std::string_view::npos ||
+           lower.find("wrong url") != std::string_view::npos ||
+           lower.find("invalid url") != std::string_view::npos ||
+           lower.find("http url specified") != std::string_view::npos;
+}
+
+bool isTimeoutError(std::string_view lower) {
+    return lower.find("timeout") != std::string_view::npos ||
+           lower.find("timed out") != std::string_view::npos;
+}
+
+bool isRateLimitError(std::string_view lower) {
+    return lower.find("too many requests") != std::string_view::npos ||
+           lower.find("retry after") != std::string_view::npos ||
+           lower.find("429") != std::string_view::npos;
+}
+
+bool isApiError(std::string_view lower) {
+    return lower.find("bad request") != std::string_view::npos ||
+           lower.find("unauthorized") != std::string_view::npos ||
+           lower.find("api error") != std::string_view::npos ||
+           lower.find("telegram api") != std::string_view::npos;
+}
+
+bool shouldRetryException(
+    const std::exception& e, int attempt, const RetryConfig& config, std::string* lastErrorOut) {
+    std::string err = e.what();
+    if (lastErrorOut) *lastErrorOut = err;
+    auto type = NetworkErrorHandler::classifyError(err);
+    std::cerr << "[NetworkErrorHandler] Ошибка сети (попытка "
+              << (attempt + 1) << " из " << (config.maxRetries + 1) << "): " << err << "\n";
+    if (!NetworkErrorHandler::isRetryable(type) || attempt == config.maxRetries) return false;
+    if (config.retryDelayMs > 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(config.retryDelayMs));
+    }
+    return true;
+}
+
 } // namespace
 
 NetworkErrorType NetworkErrorHandler::classifyError(const std::string& errorMessage) {
-    if (errorMessage.empty()) {
-        return NetworkErrorType::None;
-    }
+    if (errorMessage.empty()) return NetworkErrorType::None;
 
     std::string lower = toLower(errorMessage);
-
-    // Ошибки медиа и ссылок на постеры
-    if (lower.find("failed to get http url content") != std::string::npos ||
-        lower.find("wrong file identifier") != std::string::npos ||
-        lower.find("wrong url") != std::string::npos ||
-        lower.find("invalid url") != std::string::npos ||
-        lower.find("http url specified") != std::string::npos) {
-        return NetworkErrorType::InvalidMediaUrl;
-    }
-
-    // Таймауты сети
-    if (lower.find("timeout") != std::string::npos ||
-        lower.find("timed out") != std::string::npos) {
-        return NetworkErrorType::Timeout;
-    }
-
-    // Ограничение частоты запросов
-    if (lower.find("too many requests") != std::string::npos ||
-        lower.find("retry after") != std::string::npos ||
-        lower.find("429") != std::string::npos) {
-        return NetworkErrorType::RateLimit;
-    }
-
-    // Ошибки API
-    if (lower.find("bad request") != std::string::npos ||
-        lower.find("unauthorized") != std::string::npos ||
-        lower.find("api error") != std::string::npos ||
-        lower.find("telegram api") != std::string::npos) {
-        return NetworkErrorType::ApiError;
-    }
+    if (isMediaError(lower)) return NetworkErrorType::InvalidMediaUrl;
+    if (isTimeoutError(lower)) return NetworkErrorType::Timeout;
+    if (isRateLimitError(lower)) return NetworkErrorType::RateLimit;
+    if (isApiError(lower)) return NetworkErrorType::ApiError;
 
     return NetworkErrorType::Unknown;
 }
@@ -87,32 +100,13 @@ bool NetworkErrorHandler::executeWithRetry(
             operation();
             return true;
         } catch (const std::exception& e) {
-            std::string err = e.what();
-            if (lastErrorOut) {
-                *lastErrorOut = err;
-            }
-
-            auto type = classifyError(err);
-            std::cerr << "[NetworkErrorHandler] Ошибка сети (попытка "
-                      << (attempt + 1) << " из " << (config.maxRetries + 1) << "): "
-                      << err << "\n";
-
-            if (!isRetryable(type) || attempt == config.maxRetries) {
-                return false;
-            }
-
-            if (config.retryDelayMs > 0) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(config.retryDelayMs));
-            }
+            if (!shouldRetryException(e, attempt, config, lastErrorOut)) return false;
         } catch (...) {
-            if (lastErrorOut) {
-                *lastErrorOut = "Неизвестное исключение non-std::exception";
-            }
+            if (lastErrorOut) *lastErrorOut = "Неизвестное исключение non-std::exception";
             std::cerr << "[NetworkErrorHandler] Неизвестное исключение при выполнении запроса\n";
             return false;
         }
     }
-
     return false;
 }
 

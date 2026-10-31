@@ -2,6 +2,11 @@
 
 #include "bot/IDialogState.h"
 
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
 /**
  * @file BrowsingRecommendationsState.h
  * @brief Состояние просмотра рекомендаций фильмов (соответствует BotState::BrowsingRecommendations).
@@ -12,49 +17,36 @@ namespace bot {
 /**
  * @class BrowsingRecommendationsState
  * @brief Обработчик сценария последовательного просмотра рекомендованных фильмов.
- *
- * Отображает карточку текущего фильма, реагирует на быстрые реакции
- * (`👍 Like`, `👎 Dislike`, `⏭ Next`), инициирует переход к детальной оценке
- * либо возврат в меню.
  */
 class BrowsingRecommendationsState : public IDialogState {
 public:
-    /**
-     * @brief Возвращает тип состояния BotState::BrowsingRecommendations.
-     * @return BotState::BrowsingRecommendations.
-     */
     [[nodiscard]] BotState getStateType() const override;
 
-    /**
-     * @brief Запрашивает следующий фильм и отправляет его карточку пользователю.
-     * @param ctx Контекст конечного автомата диалогов.
-     * @param session Сессия текущего пользователя.
-     */
     void onEnter(IDialogStateContext& ctx, UserSession& session) override;
 
-    /**
-     * @brief Обрабатывает текстовые команды (/rate, /next, /genres, /menu, /start).
-     * @param ctx Контекст конечного автомата диалогов.
-     * @param session Сессия текущего пользователя.
-     * @param msg Входящее текстовое сообщение.
-     */
     void handleMessage(IDialogStateContext& ctx, UserSession& session, const IncomingMessage& msg) override;
 
-    /**
-     * @brief Обрабатывает callback-запросы реакций (rec:like, rec:dislike, rec:next, rec:rate, rec:menu).
-     * @param ctx Контекст конечного автомата диалогов.
-     * @param session Сессия текущего пользователя.
-     * @param cb Входящий callback-запрос.
-     */
     void handleCallback(IDialogStateContext& ctx, UserSession& session, const IncomingCallback& cb) override;
 
 private:
-    /**
-     * @brief Загружает следующий фильм из контекста и отображает его карточку.
-     * @param ctx Контекст конечного автомата.
-     * @param session Сессия текущего пользователя.
-     */
     void showNextMovie(IDialogStateContext& ctx, UserSession& session);
+    void handleNoMoreRecommendations(IDialogStateContext& ctx, UserSession& session);
+    void sendNextMovieCard(IDialogStateContext& ctx, UserSession& session, core::Movie& movie);
+    void handleSimilarCommand(IDialogStateContext& ctx, UserSession& session);
+    void handleLike(IDialogStateContext& ctx, UserSession& session, int64_t movieId);
+    void handleDislike(IDialogStateContext& ctx, UserSession& session, int64_t movieId);
+    void handleNext(IDialogStateContext& ctx, UserSession& session, int64_t movieId);
+    void handleRate(IDialogStateContext& ctx, UserSession& session, int64_t movieId);
+    void handleSimilarCallback(IDialogStateContext& ctx, UserSession& session, int64_t movieId);
+
+    [[nodiscard]] std::optional<core::Movie> resolveTargetMovie(
+        IDialogStateContext& ctx, const UserSession& session, int64_t movieId) const;
+
+    [[nodiscard]] static std::string formatSimilarMoviesText(
+        const std::string& title, const std::vector<core::Movie>& similar);
+
+    [[nodiscard]] static std::pair<bool, int64_t> parseCallbackPayload(
+        const std::string& data, const std::string& prefix);
 };
 
 } // namespace bot

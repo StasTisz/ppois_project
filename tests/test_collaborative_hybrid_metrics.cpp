@@ -29,13 +29,20 @@ protected:
         userRepo = std::make_shared<repository::SQLiteUserRepository>(dbManager.getHandle());
 
         // Setup movies with genres and trailer URLs
-        core::Movie m1{1, "The Shawshank Redemption", 1994, {"Drama"}, "Frank Darabont", "Desc", 9.3, "poster1.jpg", "", "https://youtube.com/trailer1"};
-        core::Movie m2{2, "The Godfather", 1972, {"Crime", "Drama"}, "Francis Ford Coppola", "Desc", 9.2, "poster2.jpg", "", "https://youtube.com/trailer2"};
-        core::Movie m3{3, "The Dark Knight", 2008, {"Action", "Crime"}, "Christopher Nolan", "Desc", 9.0, "poster3.jpg", "", "https://youtube.com/trailer3"};
-        core::Movie m4{4, "Inception", 2010, {"Action", "Sci-Fi"}, "Christopher Nolan", "Desc", 8.8, "poster4.jpg", "", "https://youtube.com/trailer4"};
-        core::Movie m5{5, "Interstellar", 2014, {"Sci-Fi", "Drama"}, "Christopher Nolan", "Desc", 8.7, "poster5.jpg", "", "https://youtube.com/trailer5"};
-        core::Movie m6{6, "Pulp Fiction", 1994, {"Crime", "Drama"}, "Quentin Tarantino", "Desc", 8.9, "poster6.jpg", "", "https://youtube.com/trailer6"};
-        core::Movie m7{7, "Toy Story", 1995, {"Animation", "Comedy"}, "John Lasseter", "Desc", 8.3, "poster7.jpg", "", "https://youtube.com/trailer7"};
+        core::Movie m1{1, "The Shawshank Redemption", 1994, {"Drama"}, "Frank Darabont",
+            "Desc", 9.3, "poster1.jpg", "", "https://youtube.com/trailer1"};
+        core::Movie m2{2, "The Godfather", 1972, {"Crime", "Drama"}, "Francis Ford Coppola",
+            "Desc", 9.2, "poster2.jpg", "", "https://youtube.com/trailer2"};
+        core::Movie m3{3, "The Dark Knight", 2008, {"Action", "Crime"}, "Christopher Nolan",
+            "Desc", 9.0, "poster3.jpg", "", "https://youtube.com/trailer3"};
+        core::Movie m4{4, "Inception", 2010, {"Action", "Sci-Fi"}, "Christopher Nolan",
+            "Desc", 8.8, "poster4.jpg", "", "https://youtube.com/trailer4"};
+        core::Movie m5{5, "Interstellar", 2014, {"Sci-Fi", "Drama"}, "Christopher Nolan",
+            "Desc", 8.7, "poster5.jpg", "", "https://youtube.com/trailer5"};
+        core::Movie m6{6, "Pulp Fiction", 1994, {"Crime", "Drama"}, "Quentin Tarantino",
+            "Desc", 8.9, "poster6.jpg", "", "https://youtube.com/trailer6"};
+        core::Movie m7{7, "Toy Story", 1995, {"Animation", "Comedy"}, "John Lasseter",
+            "Desc", 8.3, "poster7.jpg", "", "https://youtube.com/trailer7"};
 
         movieRepo->addMovie(m1);
         movieRepo->addMovie(m2);

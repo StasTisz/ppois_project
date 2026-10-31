@@ -84,7 +84,9 @@ public:
         textCalls.push_back({chatId, text, keyboard});
     }
 
-    bool sendPhotoWithKeyboard(int64_t chatId, const std::string& photoUrl, const std::string& caption, const bot::InlineKeyboard& keyboard) override {
+    bool sendPhotoWithKeyboard(
+        int64_t chatId, const std::string& photoUrl,
+        const std::string& caption, const bot::InlineKeyboard& keyboard) override {
         photoCalls.push_back({chatId, photoUrl, caption, keyboard});
         return photoSendResult;
     }

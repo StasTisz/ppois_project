@@ -17,13 +17,6 @@ namespace bot {
 /**
  * @class CommandDispatcher
  * @brief Обрабатывает глобальные команды пользователя независимо от текущего состояния FSM.
- *
- * Распознает и выполняет команды:
- * - `/start`: запуск онбординга и переход к выбору жанров.
- * - `/recommend`: запуск подбора рекомендаций или перенаправление на выбор жанров.
- * - `/genres`: переход к панели настройки предпочтений.
- * - `/history`: вывод истории оцененных фильмов пользователя.
- * - `/help`: подробная справка по функционалу бота.
  */
 class CommandDispatcher {
 public:
@@ -55,6 +48,9 @@ private:
     void handleHistory(const UserSession& session);
     void handleStats(const UserSession& session);
     void handleHelp(const UserSession& session);
+
+    [[nodiscard]] std::string formatHistoryText(const UserSession& session, const std::string& strategy) const;
+    [[nodiscard]] static std::string buildHelpText();
 
     IDialogStateContext& context_;
     std::shared_ptr<IBotMessenger> messenger_;

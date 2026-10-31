@@ -1,4 +1,7 @@
 #include "bot/KeyboardFactory.h"
+#include "bot/BotConstants.h"
+
+#include <algorithm>
 
 /**
  * @file KeyboardFactory.cpp
@@ -16,8 +19,7 @@ const std::vector<std::string>& KeyboardFactory::getDefaultGenres() {
 }
 
 InlineKeyboard KeyboardFactory::createMainMenuKeyboard() {
-    InlineKeyboard kb;
-    kb.rows = {
+    return InlineKeyboard{{
         {
             {"🎬 Рекомендации", "menu:recommend"},
             {"🎭 Жанры", "menu:genres"}
@@ -26,8 +28,14 @@ InlineKeyboard KeyboardFactory::createMainMenuKeyboard() {
             {"📜 История", "menu:history"},
             {"ℹ️ Помощь", "menu:help"}
         }
-    };
-    return kb;
+    }};
+}
+
+InlineButton KeyboardFactory::createGenreButton(
+    const std::string& genre, const std::vector<std::string>& selectedGenres) {
+    bool isSelected = std::find(selectedGenres.begin(), selectedGenres.end(), genre) != selectedGenres.end();
+    std::string text = isSelected ? ("✅ " + genre) : genre;
+    return InlineButton{std::move(text), "genre:toggle:" + genre, ""};
 }
 
 InlineKeyboard KeyboardFactory::createGenreSelectionKeyboard(
@@ -37,76 +45,51 @@ InlineKeyboard KeyboardFactory::createGenreSelectionKeyboard(
     InlineKeyboardRow currentRow;
 
     for (const auto& genre : availableGenres) {
-        bool isSelected = false;
-        for (const auto& sel : selectedGenres) {
-            if (sel == genre) {
-                isSelected = true;
-                break;
-            }
-        }
-
-        std::string text = isSelected ? ("✅ " + genre) : genre;
-        currentRow.push_back({std::move(text), "genre:toggle:" + genre});
-
-        if (currentRow.size() == 2) {
+        currentRow.push_back(createGenreButton(genre, selectedGenres));
+        if (currentRow.size() == kGenresPerRow) {
             kb.rows.push_back(std::move(currentRow));
             currentRow.clear();
         }
     }
-
     if (!currentRow.empty()) {
         kb.rows.push_back(std::move(currentRow));
     }
-
-    kb.rows.push_back({{"✔️ Готово", "genre:confirm"}});
+    kb.rows.push_back({{"✔️ Готово", "genre:confirm", ""}});
     return kb;
 }
 
 InlineKeyboard KeyboardFactory::createMovieReactionKeyboard(int64_t movieId, const std::string& trailerUrl) {
     std::string suffix = (movieId > 0) ? (":" + std::to_string(movieId)) : "";
-
     InlineKeyboard kb;
     kb.rows.push_back({
-        {"👍 Понравился", "rec:like" + suffix},
-        {"👎 Не понравился", "rec:dislike" + suffix}
+        {"👍 Понравился", "rec:like" + suffix, ""},
+        {"👎 Не понравился", "rec:dislike" + suffix, ""}
     });
     kb.rows.push_back({
-        {"⏭ Следующий", "rec:next" + suffix},
-        {"⭐ Оценить (1-10)", "rec:rate" + suffix}
+        {"⏭ Следующий", "rec:next" + suffix, ""},
+        {"⭐ Оценить (1-10)", "rec:rate" + suffix, ""}
     });
-
     if (!trailerUrl.empty()) {
-        kb.rows.push_back({
-            {"🎬 Смотреть трейлер", "", trailerUrl}
-        });
+        kb.rows.push_back({{"🎬 Смотреть трейлер", "", trailerUrl}});
     }
-
-    kb.rows.push_back({
-        {"🏠 В меню", "rec:menu"}
-    });
-
+    kb.rows.push_back({{"🏠 В меню", "rec:menu", ""}});
     return kb;
+}
+
+InlineKeyboardRow KeyboardFactory::createRatingRow(int from, int to) {
+    InlineKeyboardRow row;
+    row.reserve(static_cast<size_t>(to - from + 1));
+    for (int i = from; i <= to; ++i) {
+        row.push_back({std::to_string(i), "rate:" + std::to_string(i), ""});
+    }
+    return row;
 }
 
 InlineKeyboard KeyboardFactory::createRatingKeyboard() {
     InlineKeyboard kb;
-    InlineKeyboardRow row1;
-    row1.reserve(5);
-    for (int i = 1; i <= 5; ++i) {
-        row1.push_back({std::to_string(i), "rate:" + std::to_string(i)});
-    }
-
-    InlineKeyboardRow row2;
-    row2.reserve(5);
-    for (int i = 6; i <= 10; ++i) {
-        row2.push_back({std::to_string(i), "rate:" + std::to_string(i)});
-    }
-
-    InlineKeyboardRow row3 = {
-        {"🔙 Отмена", "rate:cancel"}
-    };
-
-    kb.rows = {std::move(row1), std::move(row2), std::move(row3)};
+    kb.rows.push_back(createRatingRow(1, 5));
+    kb.rows.push_back(createRatingRow(6, 10));
+    kb.rows.push_back({{"🔙 Отмена", "rate:cancel", ""}});
     return kb;
 }
 

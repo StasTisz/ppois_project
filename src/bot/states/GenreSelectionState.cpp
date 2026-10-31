@@ -11,6 +11,19 @@
 
 namespace bot {
 
+namespace {
+
+std::string formatGenresLine(const std::vector<std::string>& genres) {
+    if (genres.empty()) return "(пока ничего не выбрано)\n";
+    std::string res;
+    for (size_t i = 0; i < genres.size(); ++i) {
+        res += genres[i] + (i + 1 < genres.size() ? ", " : "\n");
+    }
+    return res;
+}
+
+} // namespace
+
 BotState GenreSelectionState::getStateType() const {
     return BotState::SelectingGenres;
 }
@@ -20,124 +33,103 @@ void GenreSelectionState::onEnter(IDialogStateContext& ctx, UserSession& session
         "🎬 Добро пожаловать в Movie Recommendation Bot!\n"
         "Ваш персональный ИИ-киносоветчик с каталогом из 60 культовых фильмов.\n\n"
         "Как работает подбор рекомендаций:\n"
-        "1️⃣ Старт по жанрам (Cold-Start) — выберите любимые жанры, и бот предложит признанные шедевры с высшим рейтингом.\n"
-        "2️⃣ Умный подбор (Content-Based AI) — после любого лайка (👍) или оценки 7-10 включается контентный анализ: алгоритм изучает сходство жанров (70%), режиссера (25%) и эпохи (5%) для персональных рекомендаций.\n");
+        "1️⃣ Старт по жанрам (Cold-Start) — выберите любимые жанры, и бот предложит признанные шедевры.\n"
+        "2️⃣ Умный подбор (Content-Based AI) — после лайка (👍) или высокой оценки (>=7) включается\n"
+        "   анализ сходства жанров (70%), режиссера (25%) и эпохи (5%) для точных рекомендаций.\n");
 }
 
-void GenreSelectionState::handleMessage(IDialogStateContext& ctx, UserSession& session, const IncomingMessage& msg) {
+void GenreSelectionState::handleDone(IDialogStateContext& ctx, UserSession& session) {
+    if (!session.hasSelectedGenres()) {
+        if (auto messenger = ctx.getMessenger()) {
+            messenger->sendMessage(session.chatId,
+                "⚠️ Пожалуйста, выберите хотя бы один любимый жанр перед продолжением.");
+        }
+        return;
+    }
+    ctx.saveUserGenres(session.userId, session.getSelectedGenres());
+    ctx.transitionTo(session.userId, BotState::BrowsingRecommendations);
+}
+
+void GenreSelectionState::handleTextGenre(
+    IDialogStateContext& ctx, UserSession& session, const std::string& text) {
     auto messenger = ctx.getMessenger();
-
-    if (msg.text == "/done" || msg.text == "Готово" || msg.text == "готово") {
-        if (session.selectedGenres.empty()) {
-            if (messenger) {
-                messenger->sendMessage(session.chatId,
-                    "⚠️ Пожалуйста, выберите хотя бы один любимый жанр перед продолжением.");
-            }
-            return;
+    core::GenreBit bit = core::stringToGenreBit(text);
+    if (bit == core::GenreBit::Unknown) {
+        if (messenger) {
+            messenger->sendMessage(session.chatId,
+                "⚠️ Не удалось распознать жанр: \"" + text + "\".\n"
+                "Пожалуйста, используйте кнопки меню ниже для выбора жанров.");
         }
-        ctx.saveUserGenres(session.userId, session.selectedGenres);
-        ctx.transitionTo(session.userId, BotState::BrowsingRecommendations);
+        sendStatusMessage(ctx, session);
         return;
     }
 
-    if (msg.text == "/cancel" || msg.text == "/menu") {
-        ctx.transitionTo(session.userId, BotState::Idle);
-        return;
-    }
-
-    // Если передан текст названия жанра
-    if (!msg.text.empty() && msg.text[0] != '/') {
-        core::GenreBit bit = core::stringToGenreBit(msg.text);
-        if (bit == core::GenreBit::Unknown) {
-            if (messenger) {
-                messenger->sendMessage(session.chatId,
-                    "⚠️ Не удалось распознать жанр: \"" + msg.text + "\".\n"
-                    "Пожалуйста, используйте кнопки меню ниже для выбора жанров.");
-            }
-            sendStatusMessage(ctx, session);
-            return;
-        }
-
-        bool added = session.toggleGenre(msg.text);
-        ctx.saveUserGenres(session.userId, session.selectedGenres);
-        std::string notice = added
-            ? ("✅ Жанр '" + msg.text + "' добавлен в предпочтения.\n")
-            : ("❌ Жанр '" + msg.text + "' удален из предпочтений.\n");
-        sendStatusMessage(ctx, session, notice);
-        return;
-    }
-
-    sendStatusMessage(ctx, session);
+    bool added = session.toggleGenre(text);
+    ctx.saveUserGenres(session.userId, session.getSelectedGenres());
+    std::string notice = added
+        ? ("✅ Жанр '" + text + "' добавлен в предпочтения.\n")
+        : ("❌ Жанр '" + text + "' удален из предпочтений.\n");
+    sendStatusMessage(ctx, session, notice);
 }
 
-void GenreSelectionState::handleCallback(IDialogStateContext& ctx, UserSession& session, const IncomingCallback& cb) {
+void GenreSelectionState::handleMessage(
+    IDialogStateContext& ctx, UserSession& session, const IncomingMessage& msg) {
+    if (msg.text == "/done" || msg.text == "Готово" || msg.text == "готово") {
+        handleDone(ctx, session);
+    } else if (msg.text == "/cancel" || msg.text == "/menu") {
+        ctx.transitionTo(session.userId, BotState::Idle);
+    } else if (!msg.text.empty() && msg.text[0] != '/') {
+        handleTextGenre(ctx, session, msg.text);
+    } else {
+        sendStatusMessage(ctx, session);
+    }
+}
+
+void GenreSelectionState::handleToggleCallback(
+    IDialogStateContext& ctx, UserSession& session, const std::string& data, int32_t messageId) {
+    const std::string togglePrefix = "genre:toggle:";
+    std::string genre = data.substr(togglePrefix.size());
+    session.toggleGenre(genre);
+
+    if (auto messenger = ctx.getMessenger()) {
+        std::string text = buildStatusText(session,
+            "🎬 Настройка предпочтений:\n"
+            "Выберите ваши любимые жанры, чтобы алгоритм подбирал подходящие фильмы.\n");
+        InlineKeyboard kb = KeyboardFactory::createGenreSelectionKeyboard(session.getSelectedGenres());
+        messenger->editMessageWithKeyboard(session.chatId, messageId, text, kb);
+    }
+}
+
+void GenreSelectionState::handleCallback(
+    IDialogStateContext& ctx, UserSession& session, const IncomingCallback& cb) {
     const std::string togglePrefix = "genre:toggle:";
     if (cb.data.rfind(togglePrefix, 0) == 0) {
-        std::string genre = cb.data.substr(togglePrefix.size());
-        session.toggleGenre(genre);
-
-        // НЕ вызываем ctx.saveUserGenres() на каждый клик - обновляем только в памяти
-        if (auto messenger = ctx.getMessenger()) {
-            std::string text = buildStatusText(session,
-                "🎬 Настройка предпочтений:\n"
-                "Выберите ваши любимые жанры, чтобы алгоритм подбирал подходящие фильмы.\n");
-            InlineKeyboard kb = KeyboardFactory::createGenreSelectionKeyboard(session.selectedGenres);
-            messenger->editMessageWithKeyboard(session.chatId, cb.messageId, text, kb);
-        }
-        return;
-    }
-
-    if (cb.data == "genre:confirm" || cb.data == "genre:done") {
-        if (session.selectedGenres.empty()) {
-            if (auto messenger = ctx.getMessenger()) {
-                messenger->sendMessage(session.chatId,
-                    "⚠️ Пожалуйста, выберите хотя бы один любимый жанр перед продолжением.");
-            }
-            return;
-        }
-        ctx.saveUserGenres(session.userId, session.selectedGenres);
-        ctx.transitionTo(session.userId, BotState::BrowsingRecommendations);
-        return;
-    }
-
-    if (cb.data == "genre:cancel") {
+        handleToggleCallback(ctx, session, cb.data, cb.messageId);
+    } else if (cb.data == "genre:confirm" || cb.data == "genre:done") {
+        handleDone(ctx, session);
+    } else if (cb.data == "genre:cancel") {
         ctx.transitionTo(session.userId, BotState::Idle);
     }
 }
 
 std::string GenreSelectionState::buildStatusText(const UserSession& session, const std::string& prefix) {
     std::ostringstream oss;
-    if (!prefix.empty()) {
-        oss << prefix << "\n";
-    }
-
-    oss << "Текущие выбранные жанры: ";
-    if (session.selectedGenres.empty()) {
-        oss << "(пока ничего не выбрано)\n";
-    } else {
-        for (size_t i = 0; i < session.selectedGenres.size(); ++i) {
-            oss << session.selectedGenres[i];
-            if (i + 1 < session.selectedGenres.size()) {
-                oss << ", ";
-            }
-        }
-        oss << "\n";
-    }
+    if (!prefix.empty()) oss << prefix << "\n";
+    oss << "Текущие выбранные жанры: " << formatGenresLine(session.getSelectedGenres());
     oss << "Нажмите на жанр для добавления/удаления или «✅ Подтвердить выбор»:";
     return oss.str();
 }
 
-void GenreSelectionState::sendStatusMessage(IDialogStateContext& ctx, const UserSession& session, const std::string& prefix) {
+void GenreSelectionState::sendStatusMessage(
+    IDialogStateContext& ctx, const UserSession& session, const std::string& prefix) {
     auto messenger = ctx.getMessenger();
     if (!messenger) {
         return;
     }
-
     std::string text = buildStatusText(session, prefix);
     messenger->sendMessageWithKeyboard(
-        session.chatId,
-        text,
-        KeyboardFactory::createGenreSelectionKeyboard(session.selectedGenres));
+        session.chatId, text,
+        KeyboardFactory::createGenreSelectionKeyboard(session.getSelectedGenres()));
 }
 
 } // namespace bot

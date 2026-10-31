@@ -237,6 +237,21 @@ private:
      */
     [[nodiscard]] std::shared_ptr<std::recursive_mutex> getUserMutex(int64_t userId) const;
 
+    void syncUserWithRepository(UserSession& session);
+    void syncUserWithRecService(UserSession& session);
+    [[nodiscard]] std::optional<core::Movie> fetchNextFromService(UserSession& session);
+    [[nodiscard]] std::optional<core::Movie> fetchNextFromFallback(UserSession& session);
+    [[nodiscard]] static bool matchesSelectedGenres(const core::Movie& movie, const UserSession& session);
+    [[nodiscard]] std::optional<core::Movie> findCandidate(
+        const std::vector<core::Movie>& list, const UserSession& session,
+        bool checkGenres, bool checkSkipped) const;
+    [[nodiscard]] std::vector<std::pair<int64_t, int>> collectHighRatings(
+        int64_t userId, const UserSession& session) const;
+    [[nodiscard]] std::optional<core::Movie> findBestSeedMovie(
+        const std::vector<std::pair<int64_t, int>>& highRatings, const core::Movie& targetMovie) const;
+    [[nodiscard]] static std::string formatExplanation(
+        const core::Movie& seedMovie, const core::Movie& targetMovie);
+
     std::shared_ptr<IBotMessenger> messenger_;
     std::shared_ptr<recommendation::RecommendationService> recService_;
     std::shared_ptr<repository::IUserRepository> userRepo_;

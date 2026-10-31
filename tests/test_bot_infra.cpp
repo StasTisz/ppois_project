@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "bot/IBotMessenger.h"
 #include "bot/BotEventRouter.h"
+#include "bot/UserSession.h"
+#include "bot/BotConstants.h"
 
 #include <vector>
 #include <string>
@@ -191,4 +193,80 @@ TEST(BotEventRouterTest, DoesNotDebounceAcrossDifferentUsers) {
     EXPECT_EQ(receivedUserIds.size(), 2);
     EXPECT_EQ(receivedUserIds[0], 1);
     EXPECT_EQ(receivedUserIds[1], 2);
+}
+
+/**
+ * @test Проверяет методы инкапсуляции и принцип Tell, Don't Ask в структуре UserSession.
+ */
+TEST(UserSessionTest, EncapsulationMethodsAndTellDontAsk) {
+    bot::UserSession session;
+    EXPECT_FALSE(session.hasSelectedGenres());
+    EXPECT_FALSE(session.hasRatings());
+    EXPECT_FALSE(session.hasCurrentMovie());
+    EXPECT_EQ(session.getRatingCount(), 0);
+
+    // Тестирование жанров
+    session.setSelectedGenres({"Drama", "Action"});
+    EXPECT_TRUE(session.hasSelectedGenres());
+    EXPECT_TRUE(session.hasGenre("Drama"));
+    EXPECT_FALSE(session.hasGenre("Comedy"));
+    EXPECT_EQ(session.getSelectedGenres().size(), 2);
+
+    // Тестирование оценок
+    session.recordRating(42, 9);
+    EXPECT_TRUE(session.hasRatings());
+    EXPECT_TRUE(session.hasRating(42));
+    EXPECT_FALSE(session.hasRating(99));
+    EXPECT_EQ(session.getRating(42), std::optional<int>(9));
+    EXPECT_EQ(session.getRating(99), std::nullopt);
+    EXPECT_EQ(session.getRatingCount(), 1);
+
+    // Пропуск фильма
+    session.markSkipped(100);
+    EXPECT_TRUE(session.isSkipped(100));
+    EXPECT_FALSE(session.isSkipped(101));
+
+    // Выставление оценки ранее пропущенному фильму снимает статус пропуска
+    session.recordRating(100, 8);
+    EXPECT_FALSE(session.isSkipped(100));
+
+    // Уведомление о последнем действии
+    session.setLastActionNotice("Action notice text");
+    EXPECT_EQ(session.getLastActionNotice(), "Action notice text");
+    std::string consumed = session.consumeLastActionNotice();
+    EXPECT_EQ(consumed, "Action notice text");
+    EXPECT_TRUE(session.getLastActionNotice().empty());
+
+    // Текущий фильм
+    core::Movie m;
+    m.id = 55;
+    m.title = "Test Movie";
+    session.setCurrentMovie(m);
+    EXPECT_TRUE(session.hasCurrentMovie());
+    EXPECT_EQ(session.getCurrentMovie()->id, 55);
+    session.clearCurrentMovie();
+    EXPECT_FALSE(session.hasCurrentMovie());
+
+    // Полный сброс
+    session.resetSessionData();
+    EXPECT_FALSE(session.hasSelectedGenres());
+    EXPECT_FALSE(session.hasRatings());
+    EXPECT_FALSE(session.hasCurrentMovie());
+    EXPECT_EQ(session.getRatingCount(), 0);
+}
+
+/**
+ * @test Проверяет значения централизованных именованных констант BotConstants.
+ */
+TEST(BotConstantsTest, VerifyDefaultValues) {
+    EXPECT_EQ(bot::kRatingLike, 10);
+    EXPECT_EQ(bot::kRatingDislike, 1);
+    EXPECT_EQ(bot::kMinRating, 1);
+    EXPECT_EQ(bot::kMaxRating, 10);
+    EXPECT_EQ(bot::kPositiveRatingThreshold, 7);
+    EXPECT_EQ(bot::kDefaultSimilarMoviesLimit, 3);
+    EXPECT_EQ(bot::kRecommendationBatchSize, 20);
+    EXPECT_EQ(bot::kDebounceTimeoutMs, 300);
+    EXPECT_EQ(bot::kDefaultThreadPoolSize, 4);
+    EXPECT_EQ(bot::kDefaultLongPollTimeoutSeconds, 10);
 }

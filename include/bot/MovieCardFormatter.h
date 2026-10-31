@@ -1,12 +1,13 @@
 #pragma once
 
+#include "bot/BotConstants.h"
 #include "bot/IBotMessenger.h"
 #include "bot/InlineKeyboard.h"
 #include "core/Movie.h"
 
 #include <cstddef>
-#include <string>
 #include <functional>
+#include <string>
 
 /**
  * @file MovieCardFormatter.h
@@ -21,8 +22,8 @@ namespace bot {
  */
 class MovieCardFormatter {
 public:
-    static constexpr size_t kMaxPhotoCaptionLength = 1024;
-    static constexpr size_t kMaxTextMessageLength = 4096;
+    static constexpr size_t kMaxPhotoCaptionLength = kMaxPhotoCaptionBytes;
+    static constexpr size_t kMaxTextMessageLength = kMaxTextMessageBytes;
 
     [[nodiscard]] static bool hasValidPosterUrl(const core::Movie& movie);
 
@@ -30,12 +31,6 @@ public:
 
     /**
      * @brief Форматирует карточку фильма в текстовую подпись/сообщение с соблюдением лимита длины.
-     * @param movie Объект фильма с метаданными.
-     * @param maxLength Максимальная длина итогового текста (по умолчанию kMaxPhotoCaptionLength).
-     * @param notice Опциональное вступительное уведомление о предыдущем действии пользователя.
-     * @param explanation Пояснение алгоритма, почему фильм рекомендован.
-     * @param userStatus Краткий статус пользователя (например, количество оцененных фильмов).
-     * @return Отформатированная строка.
      */
     [[nodiscard]] static std::string formatMovieCard(
         const core::Movie& movie,
@@ -45,15 +40,7 @@ public:
         const std::string& userStatus = "");
 
     /**
-     * @brief Отправляет карточку фильма с поддержкой UI-подписей, прямой доставки пользователю и кэширования poster_file_id.
-     * @param messenger Клиент отправки сообщений.
-     * @param chatId Идентификатор целевого чата пользователя.
-     * @param movie Объект фильма (кэширует file_id в movie.posterFileId).
-     * @param keyboard Клавиатура реакций.
-     * @param notice Опциональное вступительное уведомление о предыдущем действии пользователя.
-     * @param explanation Пояснение алгоритма, почему фильм рекомендован.
-     * @param userStatus Краткий статус пользователя (например, количество оцененных фильмов).
-     * @param onFileIdCached Callback для сохранения полученного от Telegram file_id в базу данных.
+     * @brief Отправляет карточку фильма с поддержкой UI-подписей и ленивого кэширования poster_file_id.
      */
     static void sendMovieCard(
         IBotMessenger& messenger,
@@ -77,7 +64,7 @@ public:
         std::function<void(int64_t, const std::string&)> onFileIdCached = nullptr);
 
     /**
-     * @brief Отправляет карточку фильма в чат Telegram для константного объекта фильма: фото с подписью, либо текст с клавиатурой.
+     * @brief Отправляет карточку фильма в чат Telegram для константного объекта фильма.
      */
     static void sendMovieCard(
         IBotMessenger& messenger,
@@ -87,6 +74,19 @@ public:
         const std::string& notice = "",
         const std::string& explanation = "",
         const std::string& userStatus = "");
+
+private:
+    static size_t getUtf8SequenceLength(unsigned char lead);
+    static std::string formatCardHeader(const core::Movie& movie, const std::string& notice);
+    static std::string formatCardBody(
+        const core::Movie& movie, const std::string& explanation, const std::string& userStatus);
+    static bool trySendCachedPoster(
+        IBotMessenger& messenger, int64_t chatId, core::Movie& movie,
+        const std::string& caption, const InlineKeyboard& keyboard);
+    static bool trySendUrlPoster(
+        IBotMessenger& messenger, int64_t chatId, core::Movie& movie,
+        const std::string& caption, const InlineKeyboard& keyboard,
+        const std::function<void(int64_t, const std::string&)>& onFileIdCached);
 };
 
 } // namespace bot

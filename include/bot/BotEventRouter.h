@@ -84,6 +84,8 @@ private:
         std::chrono::steady_clock::time_point timestamp{};
     };
 
+    [[nodiscard]] bool isDuplicateCallback(int64_t userId, int32_t messageId, const std::string& data);
+
     std::shared_ptr<IBotMessenger> messenger_;
     MessageHandler customMessageHandler_;
     CallbackHandler customCallbackHandler_;
