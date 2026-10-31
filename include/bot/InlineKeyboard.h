@@ -18,6 +18,7 @@ namespace bot {
 struct InlineButton {
     std::string text;         ///< Отображаемый текст на кнопке.
     std::string callbackData; ///< Полезная нагрузка (callback_data), возвращаемая боту при нажатии.
+    std::string url;          ///< Опциональная веб-ссылка (кнопка-ссылка URL).
 };
 
 /// Псевдоним для ряда кнопок клавиатуры.
@@ -64,7 +65,23 @@ struct InlineKeyboard {
         for (const auto& row : rows) {
             for (const auto& btn : row) {
                 if (btn.callbackData == callbackData ||
-                    btn.callbackData.rfind(callbackData + ":", 0) == 0) {
+                    (!callbackData.empty() && btn.callbackData.rfind(callbackData + ":", 0) == 0)) {
+                    return &btn;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Ищет кнопку по значению URL ссылки.
+     * @param url Адрес ссылки для поиска.
+     * @return Указатель на найденную кнопку, либо nullptr, если кнопка не найдена.
+     */
+    [[nodiscard]] const InlineButton* findByUrl(const std::string& url) const {
+        for (const auto& row : rows) {
+            for (const auto& btn : row) {
+                if (btn.url == url) {
                     return &btn;
                 }
             }

@@ -212,7 +212,10 @@ void BrowsingRecommendationsState::showNextMovie(IDialogStateContext& ctx, UserS
         return;
     }
 
-    InlineKeyboard keyboard = KeyboardFactory::createMovieReactionKeyboard(session.currentMovie->id);
+    InlineKeyboard keyboard = KeyboardFactory::createMovieReactionKeyboard(
+        session.currentMovie->id,
+        session.currentMovie->trailerUrl
+    );
     std::string notice = session.lastActionNotice;
     session.lastActionNotice.clear();
 

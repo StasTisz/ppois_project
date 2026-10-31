@@ -197,3 +197,25 @@ TEST(KeyboardFactoryTest, MovieReactionKeyboardBindsMovieId) {
     EXPECT_EQ(menuBtn->callbackData, "rec:menu");
 }
 
+/**
+ * @test Проверяет создание кнопки трейлера при наличии и отсутствии trailerUrl.
+ */
+TEST(KeyboardFactoryTest, MovieReactionKeyboardWithTrailerUrl) {
+    // 1. Без ссылки на трейлер: 5 кнопок, кнопки трейлера нет
+    auto noTrailerKb = bot::KeyboardFactory::createMovieReactionKeyboard(10, "");
+    EXPECT_EQ(noTrailerKb.buttonCount(), 5);
+    EXPECT_EQ(noTrailerKb.findByUrl("https://youtube.com/watch?v=123"), nullptr);
+
+    // 2. С валидной ссылкой на трейлер: 6 кнопок, есть кнопка "🎬 Смотреть трейлер" с url
+    std::string testTrailerUrl = "https://www.youtube.com/watch?v=PLl99DlL6b4";
+    auto withTrailerKb = bot::KeyboardFactory::createMovieReactionKeyboard(10, testTrailerUrl);
+    EXPECT_EQ(withTrailerKb.buttonCount(), 6);
+
+    const auto* trailerBtn = withTrailerKb.findByUrl(testTrailerUrl);
+    ASSERT_NE(trailerBtn, nullptr);
+    EXPECT_EQ(trailerBtn->text, "🎬 Смотреть трейлер");
+    EXPECT_EQ(trailerBtn->url, testTrailerUrl);
+    EXPECT_TRUE(trailerBtn->callbackData.empty());
+}
+
+

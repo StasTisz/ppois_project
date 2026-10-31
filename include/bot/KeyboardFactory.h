@@ -59,12 +59,14 @@ public:
      * Ряды:
      * 1: [👍 Понравился (rec:like[:movieId])] [👎 Не понравился (rec:dislike[:movieId])]
      * 2: [⏭ Следующий (rec:next[:movieId])] [⭐ Оценить (1-10) (rec:rate[:movieId])]
-     * 3: [🏠 В меню (rec:menu)]
+     * 3: [🎬 Смотреть трейлер (url)] (если trailerUrl не пустой)
+     * 4: [🏠 В меню (rec:menu)]
      *
      * @param movieId Опциональный идентификатор фильма для защиты от кликов по старым карточкам.
+     * @param trailerUrl Опциональная ссылка на YouTube-трейлер фильма.
      * @return Объект InlineKeyboard.
      */
-    static InlineKeyboard createMovieReactionKeyboard(int64_t movieId = 0);
+    static InlineKeyboard createMovieReactionKeyboard(int64_t movieId = 0, const std::string& trailerUrl = "");
 
     /**
      * @brief Создает клавиатуру для выставления оценки фильму от 1 до 10.

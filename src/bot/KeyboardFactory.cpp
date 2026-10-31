@@ -62,23 +62,29 @@ InlineKeyboard KeyboardFactory::createGenreSelectionKeyboard(
     return kb;
 }
 
-InlineKeyboard KeyboardFactory::createMovieReactionKeyboard(int64_t movieId) {
+InlineKeyboard KeyboardFactory::createMovieReactionKeyboard(int64_t movieId, const std::string& trailerUrl) {
     std::string suffix = (movieId > 0) ? (":" + std::to_string(movieId)) : "";
 
     InlineKeyboard kb;
-    kb.rows = {
-        {
-            {"👍 Понравился", "rec:like" + suffix},
-            {"👎 Не понравился", "rec:dislike" + suffix}
-        },
-        {
-            {"⏭ Следующий", "rec:next" + suffix},
-            {"⭐ Оценить (1-10)", "rec:rate" + suffix}
-        },
-        {
-            {"🏠 В меню", "rec:menu"}
-        }
-    };
+    kb.rows.push_back({
+        {"👍 Понравился", "rec:like" + suffix},
+        {"👎 Не понравился", "rec:dislike" + suffix}
+    });
+    kb.rows.push_back({
+        {"⏭ Следующий", "rec:next" + suffix},
+        {"⭐ Оценить (1-10)", "rec:rate" + suffix}
+    });
+
+    if (!trailerUrl.empty()) {
+        kb.rows.push_back({
+            {"🎬 Смотреть трейлер", "", trailerUrl}
+        });
+    }
+
+    kb.rows.push_back({
+        {"🏠 В меню", "rec:menu"}
+    });
+
     return kb;
 }
 

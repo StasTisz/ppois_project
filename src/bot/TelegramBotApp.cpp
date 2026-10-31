@@ -44,7 +44,11 @@ TgBot::InlineKeyboardMarkup::Ptr TgBotMessenger::buildMarkup(const InlineKeyboar
         for (const auto& btn : row) {
             auto tgBtn = std::make_shared<TgBot::InlineKeyboardButton>();
             tgBtn->text = btn.text;
-            tgBtn->callbackData = btn.callbackData;
+            if (!btn.url.empty()) {
+                tgBtn->url = btn.url;
+            } else {
+                tgBtn->callbackData = btn.callbackData;
+            }
             tgRow.push_back(std::move(tgBtn));
         }
         markup->inlineKeyboard.push_back(std::move(tgRow));
