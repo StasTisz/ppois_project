@@ -22,9 +22,14 @@ lib/
 
 # Runtime SQLite databases and logs
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 *.log
+
+# OS artifacts
+.DS_Store
 
 # Environment files
 .env
