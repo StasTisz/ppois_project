@@ -1,0 +1,109 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - 'feature/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build, Static Analysis & Tests (Ubuntu Linux)
+    runs-on: ubuntu-latest
+
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ~/.cache/vcpkg/archives
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            libsqlite3-dev \
+            libssl-dev \
+            zlib1g-dev \
+            libboost-system-dev \
+            libcurl4-openssl-dev \
+            cppcheck \
+            clang-format
+
+      - name: Cache vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/vcpkg/archives
+          key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-
+
+      - name: Code Style & Line Length Check
+        run: |
+          python3 -c '
+          import os, sys
+          dirs = ["include/bot", "src/bot", "src/main.cpp"]
+          long_lines = []
+          for d in dirs:
+              if os.path.isfile(d):
+                  files = [d]
+              else:
+                  files = [os.path.join(root, f) for root, _, fs in os.walk(d) if os.path.isdir(root) for f in fs if f.endswith((".h", ".cpp"))]
+              for f in files:
+                  with open(f, "r", encoding="utf-8") as file:
+                      for i, line in enumerate(file, 1):
+                          if len(line.rstrip("\r\n")) > 150:
+                              long_lines.append(f"{f}:{i} ({len(line.rstrip())} chars): {line.strip()[:60]}...")
+          if long_lines:
+              print("\n".join(long_lines))
+              sys.exit(1)
+          print("Line length check passed successfully: zero lines > 150 characters in bot layer!")
+          '
+
+      - name: Static Analysis (cppcheck)
+        run: |
+          cppcheck --enable=warning,performance,portability \
+                   --inline-suppr \
+                   --suppress=missingIncludeSystem \
+                   --suppress=unusedFunction \
+                   --error-exitcode=0 \
+                   --std=c++20 \
+                   -I include \
+                   src/bot/ src/main.cpp
+
+      - name: Configure CMake with vcpkg
+        run: |
+          cmake -B build -S . \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+
+      - name: Build Targets
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: Execute Tests (ctest)
+        run: |
+          ctest --test-dir build --output-on-failure -C Release
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: movie-rec-bot-linux-x64
+          path: |
+            build/movie_rec_bot
+            build/movie_rec_tests
+            build/data/
