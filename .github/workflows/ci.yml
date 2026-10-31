@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      VCPKG_DEFAULT_BINARY_CACHE: ~/.cache/vcpkg/archives
+      VCPKG_DEFAULT_BINARY_CACHE: /home/runner/.cache/vcpkg/archives
 
     steps:
       - name: Checkout repository
@@ -48,13 +48,14 @@ jobs:
       - name: Cache vcpkg binary cache
         uses: actions/cache@v4
         with:
-          path: ~/.cache/vcpkg/archives
+          path: /home/runner/.cache/vcpkg/archives
           key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
             ${{ runner.os }}-vcpkg-
 
       - name: Locate vcpkg Toolchain
         run: |
+          mkdir -p /home/runner/.cache/vcpkg/archives
           VCPKG_ROOT_DIR="$VCPKG_INSTALLATION_ROOT"
           if [ -z "$VCPKG_ROOT_DIR" ]; then
             if [ -d "/usr/local/share/vcpkg" ]; then
@@ -170,44 +171,32 @@ jobs:
 
       - name: Configure CMake with vcpkg
         run: |
-          set -o pipefail
-          cat vcpkg.json
           TOOLCHAIN_ARG=""
           if [ -n "$VCPKG_INSTALLATION_ROOT" ] && [ -f "$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" ]; then
             TOOLCHAIN_ARG="-DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
           fi
-          echo "Using TOOLCHAIN_ARG: $TOOLCHAIN_ARG"
           cmake -B build -S . \
+            -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            $TOOLCHAIN_ARG 2>&1 | tee cmake_output.log
+            $TOOLCHAIN_ARG
 
-      - name: Inspect CMake and vcpkg logs
-        if: always()
+      - name: Build Targets
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: Inspect logs on failure
+        if: failure()
         run: |
           python3 -c '
           import os
-          files = ["cmake_output.log", "build/vcpkg-manifest-install.log"]
+          files = ["build/vcpkg-manifest-install.log", "build/CMakeFiles/CMakeError.log"]
           for f in files:
               if os.path.exists(f):
                   with open(f, encoding="utf-8", errors="ignore") as fp:
                       lines = [line.strip() for line in fp.readlines() if line.strip()]
-                  for l in lines[-15:]:
-                      print(f"::notice title={os.path.basename(f)}::{l[:300]}")
+                  for l in lines[-10:]:
+                      print(f"::error title={os.path.basename(f)}::{l[:300]}")
           '
-
-      - name: Build Targets
-        run: |
-          set -o pipefail
-          cmake --build build --config Release --parallel 2>&1 | tee build_output.log || {
-            python3 -c '
-            with open("build_output.log") as f:
-                lines = f.readlines()
-            for line in lines[-25:]:
-                if line.strip():
-                    print(f"::error title=BuildLog::{line.strip()[:200]}")
-            '
-            exit 1
-          }
 
       - name: Execute Tests (ctest)
         run: |
