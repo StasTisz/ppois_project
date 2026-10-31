@@ -55,7 +55,12 @@ jobs:
 
       - name: Locate vcpkg Toolchain
         run: |
-          mkdir -p /home/runner/.cache/vcpkg/archives
+          CACHE_DIR="/home/runner/.cache/vcpkg/archives"
+          if [ -d "$HOME" ]; then
+            CACHE_DIR="$HOME/.cache/vcpkg/archives"
+          fi
+          mkdir -p "$CACHE_DIR"
+          echo "VCPKG_DEFAULT_BINARY_CACHE=$CACHE_DIR" >> $GITHUB_ENV
           VCPKG_ROOT_DIR="$VCPKG_INSTALLATION_ROOT"
           if [ -z "$VCPKG_ROOT_DIR" ]; then
             if [ -d "/usr/local/share/vcpkg" ]; then
@@ -164,7 +169,7 @@ jobs:
                    --suppress=missingIncludeSystem \
                    --suppress=unusedFunction \
                    --suppress=unmatchedSuppression \
-                   --error-exitcode=0 \
+                   --error-exitcode=1 \
                    --std=c++20 \
                    -I include \
                    src/bot/ src/main.cpp

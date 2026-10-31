@@ -24,7 +24,7 @@ std::string CommandDispatcher::extractCommand(const std::string& text) {
     std::string cmd = (spacePos == std::string::npos) ? text : text.substr(0, spacePos);
     auto atPos = cmd.find('@');
     if (atPos != std::string::npos) {
-        cmd = cmd.substr(0, atPos);
+        cmd.resize(atPos);
     }
     return cmd;
 }
