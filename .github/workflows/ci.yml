@@ -191,7 +191,15 @@ jobs:
 
       - name: Build Targets
         run: |
-          cmake --build build --config Release --parallel
+          set -o pipefail
+          cmake --build build --config Release --parallel 2>&1 | tee build_output.log || {
+            ERR=$(grep -i -E "error:" build_output.log | head -n 10 | tr '\r\n' '  ' | tr '"' "'")
+            if [ -z "$ERR" ]; then
+              ERR=$(tail -n 25 build_output.log | tr '\r\n' '  ' | tr '"' "'")
+            fi
+            echo "::error title=BuildError::$ERR"
+            exit 1
+          }
 
       - name: Execute Tests (ctest)
         run: |
