@@ -302,5 +302,65 @@ TEST(CommandDispatcherTest, HelpCommandMentionsBookmarks) {
 
     const auto& lastMsg = spy->entries.back();
     EXPECT_NE(lastMsg.text.find("/bookmarks"), std::string::npos);
+    EXPECT_NE(lastMsg.text.find("🔖 Буду смотреть"), std::string::npos);
 }
+
+/**
+ * @test Проверяет корректный фоллбек "Фильм #<id>" при отсутствии фильма в каталоге.
+ */
+TEST(CommandDispatcherTest, BookmarksCommandWithUnknownMovieFallback) {
+    auto spy = std::make_shared<DispatcherSpyMessenger>();
+    bot::BotStateMachine fsm(spy);
+
+    auto& session = fsm.getSession(1001, 12345, "alice");
+    session.toggleBookmark(9999);
+
+    fsm.processMessage({12345, 1001, "alice", "/bookmarks"});
+    ASSERT_FALSE(spy->entries.empty());
+
+    const auto& lastMsg = spy->entries.back();
+    EXPECT_NE(lastMsg.text.find("Фильм #9999"), std::string::npos);
+    EXPECT_FALSE(lastMsg.keyboard.empty());
+    EXPECT_NE(lastMsg.keyboard.findByCallback("menu:bookmarks"), nullptr);
+}
+
+/**
+ * @test Проверяет упорядочивание нескольких закладок по возрастанию ID фильма.
+ */
+TEST(CommandDispatcherTest, BookmarksCommandMultipleMoviesOrdered) {
+    auto spy = std::make_shared<DispatcherSpyMessenger>();
+    bot::BotStateMachine fsm(spy);
+
+    auto& session = fsm.getSession(1001, 12345, "alice");
+    session.toggleBookmark(3);
+    session.toggleBookmark(1);
+
+    fsm.processMessage({12345, 1001, "alice", "/bookmarks"});
+    ASSERT_FALSE(spy->entries.empty());
+
+    const auto& lastMsg = spy->entries.back();
+    size_t pos1 = lastMsg.text.find("Начало (Inception)");
+    size_t pos2 = lastMsg.text.find("Темный рыцарь");
+    ASSERT_NE(pos1, std::string::npos);
+    ASSERT_NE(pos2, std::string::npos);
+    EXPECT_LT(pos1, pos2);
+}
+
+/**
+ * @test Проверяет работу алиаса /watchlist для наполненного списка закладок.
+ */
+TEST(CommandDispatcherTest, WatchlistAliasOutputsSavedMovies) {
+    auto spy = std::make_shared<DispatcherSpyMessenger>();
+    bot::BotStateMachine fsm(spy);
+
+    auto& session = fsm.getSession(1001, 12345, "alice");
+    session.toggleBookmark(2);
+
+    fsm.processMessage({12345, 1001, "alice", "/watchlist"});
+    ASSERT_FALSE(spy->entries.empty());
+
+    const auto& lastMsg = spy->entries.back();
+    EXPECT_NE(lastMsg.text.find("Побег из Шоушенка"), std::string::npos);
+}
+
 

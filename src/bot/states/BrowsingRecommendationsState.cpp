@@ -95,10 +95,7 @@ std::pair<bool, int64_t> BrowsingRecommendationsState::parseCallbackPayload(
 std::optional<core::Movie> BrowsingRecommendationsState::resolveTargetMovie(
     IDialogStateContext& ctx, const UserSession& session, int64_t movieId) const {
     if (movieId > 0) {
-        auto m = ctx.getMovieById(movieId);
-        if (m.has_value()) {
-            return m;
-        }
+        return ctx.getMovieById(movieId);
     }
     return session.getCurrentMovie();
 }

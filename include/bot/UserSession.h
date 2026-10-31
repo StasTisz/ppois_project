@@ -170,6 +170,7 @@ struct UserSession {
     // --- Методы инкапсуляции закладок («Буду смотреть») ---
 
     bool toggleBookmark(int64_t movieId) {
+        if (movieId <= 0) return false;
         auto it = bookmarkedMovieIds.find(movieId);
         if (it != bookmarkedMovieIds.end()) {
             bookmarkedMovieIds.erase(it);
@@ -180,11 +181,14 @@ struct UserSession {
     }
 
     [[nodiscard]] bool isBookmarked(int64_t movieId) const {
+        if (movieId <= 0) return false;
         return bookmarkedMovieIds.find(movieId) != bookmarkedMovieIds.end();
     }
 
     [[nodiscard]] std::vector<int64_t> getBookmarkedMovieIds() const {
-        return {bookmarkedMovieIds.begin(), bookmarkedMovieIds.end()};
+        std::vector<int64_t> res(bookmarkedMovieIds.begin(), bookmarkedMovieIds.end());
+        std::sort(res.begin(), res.end());
+        return res;
     }
 
     // --- Методы уведомления о последнем действии ---

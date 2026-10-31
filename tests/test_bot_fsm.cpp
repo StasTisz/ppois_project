@@ -286,3 +286,42 @@ TEST(BotFsmTest, MainMenuBookmarksCallback) {
     EXPECT_NE(mock->sentMessages.back().text.find("Начало (Inception)"), std::string::npos);
 }
 
+/**
+ * @test Проверяет, что клик по исторической карточке с несуществующим ID не затрагивает текущий фильм.
+ */
+TEST(BotFsmTest, HistoricalBookmarkCallbackWithUnknownIdIgnored) {
+    auto mock = std::make_shared<MockBotMessenger>();
+    bot::BotStateMachine fsm(mock);
+    fsm.getSession(1001, 12345, "alice").selectedGenres = {"Drama"};
+    fsm.transitionTo(1001, bot::BotState::BrowsingRecommendations);
+
+    ASSERT_TRUE(fsm.getSession(1001).currentMovie.has_value());
+    int64_t currentMovieId = fsm.getSession(1001).currentMovie->id;
+
+    size_t beforeCount = mock->sentMessages.size();
+    fsm.processCallback({"cb_bkm_unknown", 12345, 1001, 10, "rec:bookmark:99999"});
+
+    EXPECT_FALSE(fsm.getSession(1001).isBookmarked(99999));
+    EXPECT_FALSE(fsm.getSession(1001).isBookmarked(currentMovieId));
+    EXPECT_EQ(fsm.getSession(1001).currentMovie->id, currentMovieId);
+    EXPECT_EQ(mock->sentMessages.size(), beforeCount);
+}
+
+/**
+ * @test Проверяет отправку списка закладок при вызове /bookmarks во время просмотра рекомендаций.
+ */
+TEST(BotFsmTest, BookmarksCommandWhileBrowsingRecommendations) {
+    auto mock = std::make_shared<MockBotMessenger>();
+    bot::BotStateMachine fsm(mock);
+    fsm.getSession(1001, 12345, "alice").selectedGenres = {"Drama"};
+    fsm.transitionTo(1001, bot::BotState::BrowsingRecommendations);
+
+    fsm.getSession(1001).toggleBookmark(1);
+    fsm.processMessage({12345, 1001, "alice", "/bookmarks"});
+
+    ASSERT_FALSE(mock->sentMessages.empty());
+    EXPECT_NE(mock->sentMessages.back().text.find("🔖 Ваш список закладок «Буду смотреть»:"), std::string::npos);
+    EXPECT_NE(mock->sentMessages.back().text.find("Начало (Inception)"), std::string::npos);
+}
+
+

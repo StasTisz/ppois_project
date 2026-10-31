@@ -253,11 +253,27 @@ TEST(UserSessionTest, EncapsulationMethodsAndTellDontAsk) {
 
     // Закладки («Буду смотреть»)
     EXPECT_FALSE(session.isBookmarked(42));
+    EXPECT_FALSE(session.isBookmarked(0));
+    EXPECT_FALSE(session.isBookmarked(-5));
+    EXPECT_FALSE(session.toggleBookmark(0));
+    EXPECT_FALSE(session.toggleBookmark(-10));
     EXPECT_TRUE(session.getBookmarkedMovieIds().empty());
     EXPECT_TRUE(session.toggleBookmark(42));
     EXPECT_TRUE(session.isBookmarked(42));
     EXPECT_EQ(session.getBookmarkedMovieIds().size(), 1);
     EXPECT_EQ(session.getBookmarkedMovieIds()[0], 42);
+
+    // Сортировка множественных закладок
+    EXPECT_TRUE(session.toggleBookmark(15));
+    EXPECT_TRUE(session.toggleBookmark(99));
+    auto sortedIds = session.getBookmarkedMovieIds();
+    EXPECT_EQ(sortedIds.size(), 3);
+    EXPECT_EQ(sortedIds[0], 15);
+    EXPECT_EQ(sortedIds[1], 42);
+    EXPECT_EQ(sortedIds[2], 99);
+    EXPECT_FALSE(session.toggleBookmark(15));
+    EXPECT_FALSE(session.toggleBookmark(99));
+
     EXPECT_FALSE(session.toggleBookmark(42));
     EXPECT_FALSE(session.isBookmarked(42));
     EXPECT_TRUE(session.getBookmarkedMovieIds().empty());
