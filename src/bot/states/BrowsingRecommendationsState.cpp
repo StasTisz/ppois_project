@@ -79,38 +79,75 @@ void BrowsingRecommendationsState::handleMessage(IDialogStateContext& ctx, UserS
 }
 
 void BrowsingRecommendationsState::handleCallback(IDialogStateContext& ctx, UserSession& session, const IncomingCallback& cb) {
-    if (cb.data == "rec:like") {
-        if (session.currentMovie) {
-            session.movieRatings[session.currentMovie->id] = 10;
-            ctx.recordMovieRating(session.userId, session.currentMovie->id, 10);
-            ctx.recordReaction(session.userId, session.currentMovie->id, true);
-            session.lastActionNotice = "👍 Вы отметили фильм как понравившийся (10/10)!";
+    auto parseCallback = [](const std::string& data, const std::string& prefix) -> std::pair<bool, int64_t> {
+        if (data == prefix) {
+            return {true, 0};
+        }
+        std::string fullPrefix = prefix + ":";
+        if (data.rfind(fullPrefix, 0) == 0) {
+            try {
+                int64_t id = std::stoll(data.substr(fullPrefix.size()));
+                return {true, id};
+            } catch (...) {
+                return {true, 0};
+            }
+        }
+        return {false, 0};
+    };
+
+    auto resolveMovie = [&](int64_t movieId) -> std::optional<core::Movie> {
+        if (movieId > 0) {
+            auto m = ctx.getMovieById(movieId);
+            if (m.has_value()) {
+                return m;
+            }
+        }
+        return session.currentMovie;
+    };
+
+    auto [matchedLike, likeMovieId] = parseCallback(cb.data, "rec:like");
+    if (matchedLike) {
+        auto targetMovie = resolveMovie(likeMovieId);
+        if (targetMovie) {
+            session.movieRatings[targetMovie->id] = 10;
+            ctx.recordMovieRating(session.userId, targetMovie->id, 10);
+            ctx.recordReaction(session.userId, targetMovie->id, true);
+            session.lastActionNotice = "👍 Вы отметили фильм «" + targetMovie->title + "» как понравившийся (10/10)!";
         }
         showNextMovie(ctx, session);
         return;
     }
 
-    if (cb.data == "rec:dislike") {
-        if (session.currentMovie) {
-            session.movieRatings[session.currentMovie->id] = 1;
-            ctx.recordMovieRating(session.userId, session.currentMovie->id, 1);
-            ctx.recordReaction(session.userId, session.currentMovie->id, false);
-            session.lastActionNotice = "👎 Вы отметили фильм как непонравившийся (1/10).";
+    auto [matchedDislike, dislikeMovieId] = parseCallback(cb.data, "rec:dislike");
+    if (matchedDislike) {
+        auto targetMovie = resolveMovie(dislikeMovieId);
+        if (targetMovie) {
+            session.movieRatings[targetMovie->id] = 1;
+            ctx.recordMovieRating(session.userId, targetMovie->id, 1);
+            ctx.recordReaction(session.userId, targetMovie->id, false);
+            session.lastActionNotice = "👎 Вы отметили фильм «" + targetMovie->title + "» как непонравившийся (1/10).";
         }
         showNextMovie(ctx, session);
         return;
     }
 
-    if (cb.data == "rec:next") {
-        if (session.currentMovie) {
-            session.markSkipped(session.currentMovie->id);
-            session.lastActionNotice = "⏭ Фильм «" + session.currentMovie->title + "» пропущен.";
+    auto [matchedNext, nextMovieId] = parseCallback(cb.data, "rec:next");
+    if (matchedNext) {
+        auto targetMovie = resolveMovie(nextMovieId);
+        if (targetMovie) {
+            session.markSkipped(targetMovie->id);
+            session.lastActionNotice = "⏭ Фильм «" + targetMovie->title + "» пропущен.";
         }
         showNextMovie(ctx, session);
         return;
     }
 
-    if (cb.data == "rec:rate") {
+    auto [matchedRate, rateMovieId] = parseCallback(cb.data, "rec:rate");
+    if (matchedRate) {
+        auto targetMovie = resolveMovie(rateMovieId);
+        if (targetMovie) {
+            session.currentMovie = targetMovie;
+        }
         ctx.transitionTo(session.userId, BotState::RatingMovie);
         return;
     }
@@ -120,23 +157,25 @@ void BrowsingRecommendationsState::handleCallback(IDialogStateContext& ctx, User
         return;
     }
 
-    if (cb.data == "rec:similar") {
-        if (!session.currentMovie) {
+    auto [matchedSimilar, similarMovieId] = parseCallback(cb.data, "rec:similar");
+    if (matchedSimilar) {
+        auto targetMovie = resolveMovie(similarMovieId);
+        if (!targetMovie) {
             if (auto messenger = ctx.getMessenger()) {
                 messenger->sendMessage(session.chatId, "Сейчас не выбран ни один фильм для поиска похожих.");
             }
             return;
         }
 
-        auto similar = ctx.fetchSimilarMovies(session.currentMovie->id, 3);
+        auto similar = ctx.fetchSimilarMovies(targetMovie->id, 3);
         auto messenger = ctx.getMessenger();
         if (!messenger) return;
 
         if (similar.empty()) {
-            messenger->sendMessage(session.chatId, "К сожалению, похожих фильмов не найдено.");
+            messenger->sendMessage(session.chatId, "К сожалению, похожих фильмов на «" + targetMovie->title + "» не найдено.");
         } else {
             std::ostringstream oss;
-            oss << "🎬 Фильмы, похожие на «" << session.currentMovie->title << "»:\n\n";
+            oss << "🎬 Фильмы, похожие на «" << targetMovie->title << "»:\n\n";
             for (size_t i = 0; i < similar.size(); ++i) {
                 oss << (i + 1) << ". " << similar[i].title;
                 if (similar[i].year > 0) oss << " (" << similar[i].year << ")";
@@ -173,7 +212,7 @@ void BrowsingRecommendationsState::showNextMovie(IDialogStateContext& ctx, UserS
         return;
     }
 
-    InlineKeyboard keyboard = KeyboardFactory::createMovieReactionKeyboard();
+    InlineKeyboard keyboard = KeyboardFactory::createMovieReactionKeyboard(session.currentMovie->id);
     std::string notice = session.lastActionNotice;
     session.lastActionNotice.clear();
 

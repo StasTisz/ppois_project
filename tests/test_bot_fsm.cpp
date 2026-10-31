@@ -196,3 +196,35 @@ TEST(BotFsmTest, MultiUserIsolation) {
     EXPECT_TRUE(session2.hasGenre("Sci-Fi"));
     EXPECT_FALSE(session2.hasGenre("Comedy"));
 }
+
+/**
+ * @test Проверяет обработку callback с явным movieId для оценки и пропуска конкретной карточки.
+ */
+TEST(BotFsmTest, HistoricalCardCallbackRespectsMovieId) {
+    auto mock = std::make_shared<MockBotMessenger>();
+    bot::BotStateMachine fsm(mock);
+
+    fsm.getSession(1001, 12345, "alice").selectedGenres = {"Drama"};
+    fsm.transitionTo(1001, bot::BotState::BrowsingRecommendations);
+    ASSERT_TRUE(fsm.getSession(1001).currentMovie.has_value());
+
+    // Текущий фильм m4 или m3. При клике на конкретный movieId = 3 ("Темный рыцарь")
+    // реакция должна привязаться именно к фильму 3.
+    fsm.processCallback({"cb_hist_like", 12345, 1001, 10, "rec:like:3"});
+    EXPECT_EQ(fsm.getSession(1001).movieRatings.at(3), 10);
+
+    // При клике на дизлайк по фильму 1
+    fsm.processCallback({"cb_hist_dislike", 12345, 1001, 10, "rec:dislike:1"});
+    EXPECT_EQ(fsm.getSession(1001).movieRatings.at(1), 1);
+
+    // При клике на пропуск по фильму 2
+    fsm.processCallback({"cb_hist_next", 12345, 1001, 10, "rec:next:2"});
+    EXPECT_TRUE(fsm.getSession(1001).isSkipped(2));
+
+    // При клике на оценку по фильму 3 сессия переключает currentMovie на фильм 3
+    fsm.processCallback({"cb_hist_rate", 12345, 1001, 10, "rec:rate:3"});
+    EXPECT_EQ(fsm.getSession(1001).state, bot::BotState::RatingMovie);
+    ASSERT_TRUE(fsm.getSession(1001).currentMovie.has_value());
+    EXPECT_EQ(fsm.getSession(1001).currentMovie->id, 3);
+}
+

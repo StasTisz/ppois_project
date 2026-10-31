@@ -62,16 +62,18 @@ InlineKeyboard KeyboardFactory::createGenreSelectionKeyboard(
     return kb;
 }
 
-InlineKeyboard KeyboardFactory::createMovieReactionKeyboard() {
+InlineKeyboard KeyboardFactory::createMovieReactionKeyboard(int64_t movieId) {
+    std::string suffix = (movieId > 0) ? (":" + std::to_string(movieId)) : "";
+
     InlineKeyboard kb;
     kb.rows = {
         {
-            {"👍 Понравился", "rec:like"},
-            {"👎 Не понравился", "rec:dislike"}
+            {"👍 Понравился", "rec:like" + suffix},
+            {"👎 Не понравился", "rec:dislike" + suffix}
         },
         {
-            {"⏭ Следующий", "rec:next"},
-            {"⭐ Оценить (1-10)", "rec:rate"}
+            {"⏭ Следующий", "rec:next" + suffix},
+            {"⭐ Оценить (1-10)", "rec:rate" + suffix}
         },
         {
             {"🏠 В меню", "rec:menu"}

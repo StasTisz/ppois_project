@@ -56,14 +56,15 @@ struct InlineKeyboard {
     }
 
     /**
-     * @brief Ищет кнопку по значению callbackData.
+     * @brief Ищет кнопку по точному значению callbackData или по префиксу с двоеточием.
      * @param callbackData Значение callback-данных для поиска.
      * @return Указатель на найденную кнопку, либо nullptr, если кнопка не найдена.
      */
     [[nodiscard]] const InlineButton* findByCallback(const std::string& callbackData) const {
         for (const auto& row : rows) {
             for (const auto& btn : row) {
-                if (btn.callbackData == callbackData) {
+                if (btn.callbackData == callbackData ||
+                    btn.callbackData.rfind(callbackData + ":", 0) == 0) {
                     return &btn;
                 }
             }

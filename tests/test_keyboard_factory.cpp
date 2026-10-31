@@ -165,3 +165,35 @@ TEST(KeyboardFactoryTest, FsmStatesSendKeyboards) {
     EXPECT_FALSE(spy->messages.back().keyboard.empty());
     EXPECT_NE(spy->messages.back().keyboard.findByCallback("rate:10"), nullptr);
 }
+
+/**
+ * @test Проверяет, что createMovieReactionKeyboard(movieId) привязывает ID фильма к callback_data.
+ */
+TEST(KeyboardFactoryTest, MovieReactionKeyboardBindsMovieId) {
+    auto defaultKb = bot::KeyboardFactory::createMovieReactionKeyboard();
+    const auto* defaultLike = defaultKb.findByCallback("rec:like");
+    ASSERT_NE(defaultLike, nullptr);
+    EXPECT_EQ(defaultLike->callbackData, "rec:like");
+
+    auto boundKb = bot::KeyboardFactory::createMovieReactionKeyboard(42);
+    const auto* boundLike = boundKb.findByCallback("rec:like");
+    ASSERT_NE(boundLike, nullptr);
+    EXPECT_EQ(boundLike->callbackData, "rec:like:42");
+
+    const auto* boundDislike = boundKb.findByCallback("rec:dislike");
+    ASSERT_NE(boundDislike, nullptr);
+    EXPECT_EQ(boundDislike->callbackData, "rec:dislike:42");
+
+    const auto* boundNext = boundKb.findByCallback("rec:next");
+    ASSERT_NE(boundNext, nullptr);
+    EXPECT_EQ(boundNext->callbackData, "rec:next:42");
+
+    const auto* boundRate = boundKb.findByCallback("rec:rate");
+    ASSERT_NE(boundRate, nullptr);
+    EXPECT_EQ(boundRate->callbackData, "rec:rate:42");
+
+    const auto* menuBtn = boundKb.findByCallback("rec:menu");
+    ASSERT_NE(menuBtn, nullptr);
+    EXPECT_EQ(menuBtn->callbackData, "rec:menu");
+}
+
