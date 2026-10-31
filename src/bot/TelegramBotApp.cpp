@@ -249,7 +249,9 @@ TelegramBotApp::TelegramBotApp(
       bot_(config.token),
       messenger_(std::make_shared<TgBotMessenger>(bot_)),
       router_(std::make_shared<BotEventRouter>(messenger_)),
-      stateMachine_(std::make_shared<BotStateMachine>(messenger_, std::move(recService), std::move(userRepo))) {
+      stateMachine_(std::make_shared<BotStateMachine>(messenger_, std::move(recService), std::move(userRepo))),
+      threadPool_(config.threadPoolSize > 0 ? config.threadPoolSize : 4) {
+    stateMachine_->setStorageChatId(config.storageChatId);
     stateMachine_->attachToRouter(*router_);
     setupCallbacks();
 }
@@ -280,6 +282,7 @@ void TelegramBotApp::setupCallbacks() {
 
         // Игнорируем сообщения из чата-хранилища постеров во избежание зацикливания
         if (config_.storageChatId != 0 && message->chat && message->chat->id == config_.storageChatId) {
+            std::cout << "[TelegramBotApp] Пропущено сервисное сообщение из чата-хранилища (" << config_.storageChatId << "). Пишите боту в ЛС: @ppois_movie_bot\n";
             return;
         }
 
@@ -297,6 +300,10 @@ void TelegramBotApp::setupCallbacks() {
             msg.username = message->from->username;
         }
         msg.text = message->text;
+
+        std::cout << "[TelegramBotApp] 📩 Входящее сообщение от @"
+                  << (msg.username.empty() ? std::to_string(msg.userId) : msg.username)
+                  << " (chat=" << msg.chatId << "): \"" << msg.text << "\"\n";
 
         threadPool_.enqueue([this, msg]() {
             try {
@@ -329,6 +336,9 @@ void TelegramBotApp::setupCallbacks() {
             cb.messageId = query->message->messageId;
         }
         cb.data = query->data;
+
+        std::cout << "[TelegramBotApp] 🔘 Нажата inline-кнопка от user=" << cb.userId
+                  << " (chat=" << cb.chatId << "): data=\"" << cb.data << "\"\n";
 
         threadPool_.enqueue([this, cb]() {
             try {
@@ -380,6 +390,9 @@ void TelegramBotApp::run() {
 
         bot_.getApi().setMyCommands(commands);
         std::cout << "[TelegramBotApp] Меню команд бота успешно зарегистрировано в Telegram API.\n";
+        std::cout << "[TelegramBotApp] ✅ Бот готов к работе и слушает входящие события в Telegram!\n";
+        std::cout << "[TelegramBotApp] 📱 Откройте Telegram и отправьте команду /start: https://t.me/"
+                  << (bot_.getApi().getMe() ? bot_.getApi().getMe()->username : "ppois_movie_bot") << "\n\n";
     } catch (const std::exception& e) {
         std::cerr << "[TelegramBotApp] Предупреждение: не удалось зарегистрировать команды: " << e.what() << "\n";
     }
