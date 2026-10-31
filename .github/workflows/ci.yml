@@ -179,16 +179,21 @@ jobs:
           echo "Using TOOLCHAIN_ARG: $TOOLCHAIN_ARG"
           cmake -B build -S . \
             -DCMAKE_BUILD_TYPE=Release \
-            $TOOLCHAIN_ARG 2>&1 | tee cmake_output.log || {
-              python3 -c '
-              with open("cmake_output.log") as f:
-                  lines = f.readlines()
-              for line in lines[-20:]:
-                  if line.strip():
-                      print(f"::error title=CMakeLog::{line.strip()[:200]}")
-              '
-              exit 1
-            }
+            $TOOLCHAIN_ARG 2>&1 | tee cmake_output.log
+
+      - name: Inspect CMake and vcpkg logs
+        if: always()
+        run: |
+          python3 -c '
+          import os
+          files = ["cmake_output.log", "build/vcpkg-manifest-install.log"]
+          for f in files:
+              if os.path.exists(f):
+                  with open(f, encoding="utf-8", errors="ignore") as fp:
+                      lines = [line.strip() for line in fp.readlines() if line.strip()]
+                  for l in lines[-15:]:
+                      print(f"::notice title={os.path.basename(f)}::{l[:300]}")
+          '
 
       - name: Build Targets
         run: |
