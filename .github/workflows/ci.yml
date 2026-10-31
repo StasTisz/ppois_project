@@ -170,6 +170,7 @@ jobs:
 
       - name: Configure CMake with vcpkg
         run: |
+          set -o pipefail
           cat vcpkg.json
           TOOLCHAIN_ARG=""
           if [ -n "$VCPKG_INSTALLATION_ROOT" ] && [ -f "$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" ]; then
@@ -177,15 +178,15 @@ jobs:
           fi
           echo "Using TOOLCHAIN_ARG: $TOOLCHAIN_ARG"
           cmake -B build -S . \
-            -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             $TOOLCHAIN_ARG 2>&1 | tee cmake_output.log || {
-              ERR=$(tail -n 25 cmake_output.log | tr '\r\n' '  ' | tr '"' "'")
-              echo "::error title=CMakeError::$ERR"
-              if [ -f "build/vcpkg-manifest-install.log" ]; then
-                VCPKG_ERR=$(tail -n 25 build/vcpkg-manifest-install.log | tr '\r\n' '  ' | tr '"' "'")
-                echo "::error title=VcpkgManifestError::$VCPKG_ERR"
-              fi
+              python3 -c '
+              with open("cmake_output.log") as f:
+                  lines = f.readlines()
+              for line in lines[-20:]:
+                  if line.strip():
+                      print(f"::error title=CMakeLog::{line.strip()[:200]}")
+              '
               exit 1
             }
 
@@ -193,11 +194,13 @@ jobs:
         run: |
           set -o pipefail
           cmake --build build --config Release --parallel 2>&1 | tee build_output.log || {
-            ERR=$(grep -i -E "error:" build_output.log | head -n 10 | tr '\r\n' '  ' | tr '"' "'")
-            if [ -z "$ERR" ]; then
-              ERR=$(tail -n 25 build_output.log | tr '\r\n' '  ' | tr '"' "'")
-            fi
-            echo "::error title=BuildError::$ERR"
+            python3 -c '
+            with open("build_output.log") as f:
+                lines = f.readlines()
+            for line in lines[-25:]:
+                if line.strip():
+                    print(f"::error title=BuildLog::{line.strip()[:200]}")
+            '
             exit 1
           }
 
