@@ -278,56 +278,56 @@ git commit -m "chore: stop tracking temporary sqlite wal and shm files"</code></
       <div class="mt-6 space-y-4">
 
         <!-- S1 -->
-        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
+        <div class="bg-slate-900/80 border border-emerald-500/30 rounded-xl p-4">
           <div class="flex items-start justify-between gap-2">
             <div>
-              <span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-sky-500/20 text-sky-400 mb-1">Задача S1</span>
+              <span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-400 mb-1">Задача S1</span>
               <h4 class="text-sm font-bold text-white">Потокобезопасность кэша photoFileIdCache_</h4>
               <p class="text-xs text-slate-300 mt-1">
                 Файлы: <code class="text-sky-300">TelegramBotApp.h:86</code>, <code class="text-sky-300">TelegramBotApp.cpp:141</code><br>
-                <code class="text-slate-400">unordered_map</code> в <code class="text-slate-400">TgBotMessenger</code> меняется из 4 потоков без мьютекса (Data Race).
+                Кэш защищен через <code class="text-emerald-400">std::shared_mutex</code> (shared lock на чтение, unique lock на запись). Data Race устранен.
               </p>
             </div>
-            <span class="text-xs font-semibold px-2 py-1 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">Высокий</span>
+            <span class="text-xs font-semibold px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">✓ Выполнено</span>
           </div>
           <div class="mt-3 text-xs text-slate-300 bg-slate-950 p-2.5 rounded border border-slate-800">
-            <strong>Что сделать:</strong> добавить <code class="text-sky-400">mutable std::shared_mutex cacheMutex_;</code>. Поиск защитить <code class="text-emerald-400">std::shared_lock</code>, запись — <code class="text-emerald-400">std::unique_lock</code>.
+            <strong>Реализовано:</strong> добавлен <code class="text-sky-400">mutable std::shared_mutex cacheMutex_;</code>. Все обращения к мапе защищены.
           </div>
         </div>
 
         <!-- S2 -->
-        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
+        <div class="bg-slate-900/80 border border-emerald-500/30 rounded-xl p-4">
           <div class="flex items-start justify-between gap-2">
             <div>
-              <span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-sky-500/20 text-sky-400 mb-1">Задача S2</span>
+              <span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-400 mb-1">Задача S2</span>
               <h4 class="text-sm font-bold text-white">Потокобезопасность дебаунса в BotEventRouter</h4>
               <p class="text-xs text-slate-300 mt-1">
                 Файлы: <code class="text-sky-300">BotEventRouter.h:89</code>, <code class="text-sky-300">BotEventRouter.cpp:63</code><br>
-                Переменная <code class="text-slate-400">lastCallback_</code> одна на весь бот. Клики разных юзеров сбивают таймеры друг друга.
+                Дебаунс изолирован по <code class="text-emerald-400">userId</code> и защищен мьютексом. Клики пользователей больше не влияют друг на друга.
               </p>
             </div>
-            <span class="text-xs font-semibold px-2 py-1 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">Высокий</span>
+            <span class="text-xs font-semibold px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">✓ Выполнено</span>
           </div>
           <div class="mt-3 text-xs text-slate-300 bg-slate-950 p-2.5 rounded border border-slate-800">
-            <strong>Что сделать:</strong> заменить одиночную переменную на мапу по userId: <code class="text-sky-400">std::unordered_map&lt;int64_t, LastCallbackInfo&gt; userLastCallbacks_;</code> и защитить её мьютексом.
+            <strong>Реализовано:</strong> переведено на <code class="text-sky-400">std::unordered_map&lt;int64_t, LastCallbackInfo&gt; userLastCallbacks_;</code> под <code class="text-sky-400">debounceMutex_</code>.
           </div>
         </div>
 
         <!-- S3 -->
-        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
+        <div class="bg-slate-900/80 border border-emerald-500/30 rounded-xl p-4">
           <div class="flex items-start justify-between gap-2">
             <div>
-              <span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-sky-500/20 text-sky-400 mb-1">Задача S3</span>
+              <span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-400 mb-1">Задача S3</span>
               <h4 class="text-sm font-bold text-white">Разгрузка sessionMutex_ от сетевых блокировок</h4>
               <p class="text-xs text-slate-300 mt-1">
                 Файлы: <code class="text-sky-300">BotStateMachine.cpp:447</code>, <code class="text-sky-300">BrowsingRecommendationsState.cpp:187</code><br>
-                Сетевой вызов отправки фото выполнялся под общим мьютексом сессий, из-за чего все 4 потока зависали.
+                Глобальная блокировка автомата заменена на гранулярную синхронизацию сессий по пользователям (<code class="text-emerald-400">getUserMutex(userId)</code>). Потоки не блокируют друг друга во время сетевых запросов.
               </p>
             </div>
-            <span class="text-xs font-semibold px-2 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Средний</span>
+            <span class="text-xs font-semibold px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">✓ Выполнено</span>
           </div>
           <div class="mt-3 text-xs text-slate-300 bg-slate-950 p-2.5 rounded border border-slate-800">
-            <strong>Что сделать:</strong> отпускать <code class="text-sky-400">sessionMutex_</code> перед сетевой отправкой сообщения, либо использовать гранулярный мьютекс внутри каждой сессии <code class="text-sky-400">UserSession</code>.
+            <strong>Реализовано:</strong> изолированные per-user рекурсивные мьютексы и отдельный быстрый lock на карту сессий исключили зависание пула потоков.
           </div>
         </div>
 

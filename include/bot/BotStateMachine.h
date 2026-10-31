@@ -165,27 +165,38 @@ public:
     void setMovieProvider(MovieProvider provider);
     void setStorageChatId(int64_t chatId) { storageChatId_ = chatId; }
     [[nodiscard]] int64_t getStorageChatId() const override { return storageChatId_; }
-    void setPosterCacheCallback(PosterCacheCallback callback) { posterCacheCallback_ = std::move(callback); }
+    void setPosterCacheCallback(PosterCacheCallback callback) {
+        std::lock_guard<std::mutex> lock(globalConfigMutex_);
+        posterCacheCallback_ = std::move(callback);
+    }
     void cachePosterFileId(int64_t movieId, const std::string& fileId) override;
     void setMetricsCollector(std::shared_ptr<analytics::MetricsCollector> collector) {
-        std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
+        std::lock_guard<std::mutex> lock(globalConfigMutex_);
         metricsCollector_ = std::move(collector);
     }
     [[nodiscard]] std::shared_ptr<analytics::MetricsCollector> getMetricsCollector() const {
-        std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
+        std::lock_guard<std::mutex> lock(globalConfigMutex_);
         return metricsCollector_;
     }
     void recordImpression(int64_t userId, int64_t movieId) override {
-        std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
-        if (metricsCollector_) {
-            metricsCollector_->recordImpression(userId, movieId);
+        std::shared_ptr<analytics::MetricsCollector> collector;
+        {
+            std::lock_guard<std::mutex> lock(globalConfigMutex_);
+            collector = metricsCollector_;
+        }
+        if (collector) {
+            collector->recordImpression(userId, movieId);
         }
     }
     void recordReaction(int64_t userId, int64_t movieId, bool isLike) override {
-        std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
-        if (metricsCollector_) {
-            if (isLike) metricsCollector_->recordLike(userId, movieId);
-            else metricsCollector_->recordDislike(userId, movieId);
+        std::shared_ptr<analytics::MetricsCollector> collector;
+        {
+            std::lock_guard<std::mutex> lock(globalConfigMutex_);
+            collector = metricsCollector_;
+        }
+        if (collector) {
+            if (isLike) collector->recordLike(userId, movieId);
+            else collector->recordDislike(userId, movieId);
         }
     }
 
@@ -219,6 +230,12 @@ private:
      */
     void initFallbackMovies();
 
+    /**
+     * @brief Возвращает рекурсивный мьютекс для синхронизации действий конкретного пользователя.
+     * @param userId Идентификатор пользователя Telegram.
+     */
+    [[nodiscard]] std::shared_ptr<std::recursive_mutex> getUserMutex(int64_t userId) const;
+
     std::shared_ptr<IBotMessenger> messenger_;
     std::shared_ptr<recommendation::RecommendationService> recService_;
     std::shared_ptr<repository::IUserRepository> userRepo_;
@@ -227,7 +244,10 @@ private:
     std::unordered_map<int64_t, UserSession> sessions_;
     std::vector<core::Movie> fallbackMovies_;
     MovieProvider movieProvider_;
-    mutable std::recursive_mutex sessionMutex_;
+    mutable std::mutex sessionMapMutex_;
+    mutable std::mutex userMutexMapLock_;
+    mutable std::unordered_map<int64_t, std::shared_ptr<std::recursive_mutex>> userMutexes_;
+    mutable std::mutex globalConfigMutex_;
     int64_t storageChatId_{0};
     PosterCacheCallback posterCacheCallback_;
     std::shared_ptr<analytics::MetricsCollector> metricsCollector_;

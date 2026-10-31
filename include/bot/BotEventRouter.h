@@ -6,7 +6,9 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <unordered_map>
 
 /**
  * @file BotEventRouter.h
@@ -77,7 +79,6 @@ public:
 
 private:
     struct LastCallbackInfo {
-        int64_t userId{0};
         int32_t messageId{0};
         std::string data;
         std::chrono::steady_clock::time_point timestamp{};
@@ -86,7 +87,8 @@ private:
     std::shared_ptr<IBotMessenger> messenger_;
     MessageHandler customMessageHandler_;
     CallbackHandler customCallbackHandler_;
-    LastCallbackInfo lastCallback_;
+    mutable std::mutex debounceMutex_;
+    std::unordered_map<int64_t, LastCallbackInfo> userLastCallbacks_;
 };
 
 } // namespace bot

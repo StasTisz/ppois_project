@@ -145,3 +145,50 @@ TEST(BotEventRouterTest, IgnoresEmptyMessage) {
     EXPECT_FALSE(handlerCalled);
     EXPECT_TRUE(mock->sentMessages.empty());
 }
+
+/**
+ * @test Проверяет, что быстрые повторные клики от одного пользователя подавляются (debounce).
+ */
+TEST(BotEventRouterTest, DebouncesRapidCallbacksPerUser) {
+    auto mock = std::make_shared<MockBotMessenger>();
+    bot::BotEventRouter router(mock);
+
+    int callbackCount = 0;
+    router.setCallbackHandler([&](const bot::IncomingCallback&) {
+        ++callbackCount;
+    });
+
+    bot::IncomingCallback cb1{"cb_1", 123, 456, 10, "rec:like"};
+    bot::IncomingCallback cb2{"cb_2", 123, 456, 10, "rec:like"};
+
+    router.onCallbackQuery(cb1);
+    router.onCallbackQuery(cb2); // дубликат в течение 400 мс
+
+    // Оба запроса должны быть подтверждены в API (для прекращения спиннера в UI)
+    EXPECT_EQ(mock->answeredCallbacks.size(), 2);
+    // Но бизнес-обработчик должен вызваться только 1 раз!
+    EXPECT_EQ(callbackCount, 1);
+}
+
+/**
+ * @test Проверяет, что клики от разных пользователей не подавляют друг друга.
+ */
+TEST(BotEventRouterTest, DoesNotDebounceAcrossDifferentUsers) {
+    auto mock = std::make_shared<MockBotMessenger>();
+    bot::BotEventRouter router(mock);
+
+    std::vector<int64_t> receivedUserIds;
+    router.setCallbackHandler([&](const bot::IncomingCallback& cb) {
+        receivedUserIds.push_back(cb.userId);
+    });
+
+    bot::IncomingCallback user1{"cb_1", 100, 1, 10, "rec:like"};
+    bot::IncomingCallback user2{"cb_2", 200, 2, 10, "rec:like"};
+
+    router.onCallbackQuery(user1);
+    router.onCallbackQuery(user2);
+
+    EXPECT_EQ(receivedUserIds.size(), 2);
+    EXPECT_EQ(receivedUserIds[0], 1);
+    EXPECT_EQ(receivedUserIds[1], 2);
+}

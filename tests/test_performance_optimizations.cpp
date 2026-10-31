@@ -6,6 +6,7 @@
 #include "bot/MovieCardFormatter.h"
 #include "bot/IBotMessenger.h"
 #include "bot/InlineKeyboard.h"
+#include "bot/BotStateMachine.h"
 #include "repository/DatabaseManager.h"
 #include "repository/SQLiteMovieRepository.h"
 
@@ -163,16 +164,19 @@ public:
         std::string caption;
     };
 
+    std::mutex mockMutex;
     bool photoSuccess{true};
     std::string returnedFileId{"telegram_cached_file_id_999"};
     std::vector<PhotoRequest> photoRequests;
     std::vector<std::string> sentTexts;
 
     void sendMessage(int64_t, const std::string& text) override {
+        std::lock_guard<std::mutex> lock(mockMutex);
         sentTexts.push_back(text);
     }
 
     void sendMessageWithKeyboard(int64_t, const std::string& text, const bot::InlineKeyboard&) override {
+        std::lock_guard<std::mutex> lock(mockMutex);
         sentTexts.push_back(text);
     }
 
@@ -182,6 +186,7 @@ public:
         const std::string& caption,
         const bot::InlineKeyboard&,
         std::string* fileIdOut = nullptr) override {
+        std::lock_guard<std::mutex> lock(mockMutex);
         photoRequests.push_back({chatId, photoUrlOrFileId, caption});
 
         if (!photoSuccess) {
@@ -349,4 +354,39 @@ TEST(RepositoryPerformanceTest, SQLitePosterFileIdPersistenceAndGenreMask) {
     EXPECT_EQ(afterUpdate->posterFileId, "telegram_file_id_fast_100");
     EXPECT_EQ(afterUpdate->title, "Fast & Furious");
     EXPECT_EQ(afterUpdate->genreMask, retrieved->genreMask);
+}
+
+// ============================================================================
+// 5. BotStateMachine Fine-Grained Concurrency Tests
+// ============================================================================
+
+TEST(StateMachineConcurrencyTest, ConcurrentUsersDoNotBlockEachOther) {
+    auto messenger = std::make_shared<MockCacheMessenger>();
+    bot::BotStateMachine fsm(messenger);
+
+    constexpr int kNumUsers = 16;
+    bot::ThreadPool pool(4);
+    std::vector<std::future<void>> futures;
+
+    for (int i = 1; i <= kNumUsers; ++i) {
+        futures.push_back(pool.enqueue([&fsm, i]() {
+            int64_t uid = 1000 + i;
+            bot::IncomingMessage msgStart{uid, uid, "user" + std::to_string(i), "/start"};
+            fsm.processMessage(msgStart);
+
+            bot::IncomingCallback cbGenre{"cb_" + std::to_string(i), uid, uid, 10, "genre:toggle:Sci-Fi"};
+            fsm.processCallback(cbGenre);
+
+            bot::IncomingCallback cbDone{"cb_done_" + std::to_string(i), uid, uid, 10, "genre:done"};
+            fsm.processCallback(cbDone);
+
+            auto& session = fsm.getSession(uid);
+            EXPECT_EQ(session.state, bot::BotState::BrowsingRecommendations);
+            EXPECT_TRUE(session.hasGenre("Sci-Fi"));
+        }));
+    }
+
+    for (auto& f : futures) {
+        f.get();
+    }
 }

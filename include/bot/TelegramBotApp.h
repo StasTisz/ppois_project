@@ -12,6 +12,7 @@
 #include <tgbot/tgbot.h>
 #include <atomic>
 #include <memory>
+#include <shared_mutex>
 #include <string>
 #include <unordered_map>
 
@@ -83,6 +84,7 @@ private:
 
     TgBot::Bot& bot_;
     RetryConfig retryConfig_;
+    mutable std::shared_mutex cacheMutex_;
     std::unordered_map<std::string, std::string> photoFileIdCache_;
 };
 

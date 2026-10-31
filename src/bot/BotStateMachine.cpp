@@ -103,8 +103,19 @@ void BotStateMachine::registerState(std::shared_ptr<IDialogState> state) {
     }
 }
 
+std::shared_ptr<std::recursive_mutex> BotStateMachine::getUserMutex(int64_t userId) const {
+    std::lock_guard<std::mutex> lock(userMutexMapLock_);
+    auto it = userMutexes_.find(userId);
+    if (it != userMutexes_.end()) {
+        return it->second;
+    }
+    auto m = std::make_shared<std::recursive_mutex>();
+    userMutexes_[userId] = m;
+    return m;
+}
+
 UserSession& BotStateMachine::getSession(int64_t userId, int64_t chatId, const std::string& username) {
-    std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
+    std::lock_guard<std::mutex> lock(sessionMapMutex_);
     auto it = sessions_.find(userId);
     if (it != sessions_.end()) {
         if (chatId != 0) {
@@ -150,7 +161,8 @@ UserSession& BotStateMachine::getSession(int64_t userId, int64_t chatId, const s
 }
 
 void BotStateMachine::transitionTo(int64_t userId, BotState newState) {
-    std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
+    auto userMutex = getUserMutex(userId);
+    std::lock_guard<std::recursive_mutex> lock(*userMutex);
     auto& session = getSession(userId);
     session.state = newState;
 
@@ -170,6 +182,8 @@ std::shared_ptr<IBotMessenger> BotStateMachine::getMessenger() const {
 }
 
 void BotStateMachine::saveUserGenres(int64_t userId, const std::vector<std::string>& genres) {
+    auto userMutex = getUserMutex(userId);
+    std::lock_guard<std::recursive_mutex> lock(*userMutex);
     auto& session = getSession(userId);
     session.selectedGenres = genres;
     session.skippedMovieIds.clear();
@@ -188,6 +202,8 @@ void BotStateMachine::saveUserGenres(int64_t userId, const std::vector<std::stri
 }
 
 void BotStateMachine::recordMovieRating(int64_t userId, int64_t movieId, int score) {
+    auto userMutex = getUserMutex(userId);
+    std::lock_guard<std::recursive_mutex> lock(*userMutex);
     auto& session = getSession(userId);
     session.movieRatings[movieId] = score;
     session.skippedMovieIds.erase(movieId);
@@ -206,9 +222,15 @@ void BotStateMachine::recordMovieRating(int64_t userId, int64_t movieId, int sco
 }
 
 std::optional<core::Movie> BotStateMachine::fetchNextMovie(int64_t userId) {
-    std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
-    if (movieProvider_) {
-        return movieProvider_(userId);
+    auto userMutex = getUserMutex(userId);
+    std::lock_guard<std::recursive_mutex> lock(*userMutex);
+    MovieProvider providerCopy;
+    {
+        std::lock_guard<std::mutex> globalLock(globalConfigMutex_);
+        providerCopy = movieProvider_;
+    }
+    if (providerCopy) {
+        return providerCopy(userId);
     }
 
     auto& session = getSession(userId);
@@ -415,12 +437,11 @@ CommandDispatcher& BotStateMachine::getCommandDispatcher() {
 }
 
 void BotStateMachine::setMovieProvider(MovieProvider provider) {
-    std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
+    std::lock_guard<std::mutex> lock(globalConfigMutex_);
     movieProvider_ = std::move(provider);
 }
 
 void BotStateMachine::processMessage(const IncomingMessage& msg) {
-    std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
     if (msg.text.empty()) {
         return;
     }
@@ -428,6 +449,9 @@ void BotStateMachine::processMessage(const IncomingMessage& msg) {
     if (storageChatId_ != 0 && msg.chatId == storageChatId_) {
         return;
     }
+
+    auto userMutex = getUserMutex(msg.userId);
+    std::lock_guard<std::recursive_mutex> lock(*userMutex);
 
     // Сначала проверяем глобальные команды диспетчера (/start, /recommend, /genres, /history, /help)
     if (commandDispatcher_ && commandDispatcher_->dispatch(msg)) {
@@ -444,10 +468,13 @@ void BotStateMachine::processMessage(const IncomingMessage& msg) {
 }
 
 void BotStateMachine::processCallback(const IncomingCallback& cb) {
-    std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
     if (storageChatId_ != 0 && cb.chatId == storageChatId_) {
         return;
     }
+
+    auto userMutex = getUserMutex(cb.userId);
+    std::lock_guard<std::recursive_mutex> lock(*userMutex);
+
     auto& session = getSession(cb.userId, cb.chatId);
     auto it = states_.find(session.state);
     if (it != states_.end() && it->second) {
@@ -466,9 +493,13 @@ void BotStateMachine::attachToRouter(BotEventRouter& router) {
 
 
 void BotStateMachine::cachePosterFileId(int64_t movieId, const std::string& fileId) {
-    std::lock_guard<std::recursive_mutex> lock(sessionMutex_);
-    if (posterCacheCallback_) {
-        posterCacheCallback_(movieId, fileId);
+    PosterCacheCallback cb;
+    {
+        std::lock_guard<std::mutex> lock(globalConfigMutex_);
+        cb = posterCacheCallback_;
+    }
+    if (cb) {
+        cb(movieId, fileId);
     }
 }
 

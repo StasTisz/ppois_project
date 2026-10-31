@@ -139,9 +139,12 @@ bool TgBotMessenger::sendPhotoWithKeyboard(
     mediaConfig.retryDelayMs = 250;
 
     std::string photoTarget = photoUrlOrFileId;
-    auto it = photoFileIdCache_.find(photoUrlOrFileId);
-    if (it != photoFileIdCache_.end() && !it->second.empty()) {
-        photoTarget = it->second;
+    {
+        std::shared_lock<std::shared_mutex> readLock(cacheMutex_);
+        auto it = photoFileIdCache_.find(photoUrlOrFileId);
+        if (it != photoFileIdCache_.end() && !it->second.empty()) {
+            photoTarget = it->second;
+        }
     }
 
     bool success = NetworkErrorHandler::executeWithRetry([this, chatId, &photoTarget, &caption, &markup, &sentMsg]() {
@@ -150,7 +153,10 @@ bool TgBotMessenger::sendPhotoWithKeyboard(
 
     // Если отправка по закэшированному file_id не удалась, пробуем отправить напрямую по исходному photoUrlOrFileId
     if (!success && photoTarget != photoUrlOrFileId) {
-        photoFileIdCache_.erase(photoUrlOrFileId);
+        {
+            std::unique_lock<std::shared_mutex> writeLock(cacheMutex_);
+            photoFileIdCache_.erase(photoUrlOrFileId);
+        }
         success = NetworkErrorHandler::executeWithRetry([this, chatId, &photoUrlOrFileId, &caption, &markup, &sentMsg]() {
             sentMsg = bot_.getApi().sendPhoto(chatId, photoUrlOrFileId, caption, 0, markup);
         }, mediaConfig, &lastError);
@@ -164,7 +170,10 @@ bool TgBotMessenger::sendPhotoWithKeyboard(
 
     if (sentMsg && !sentMsg->photo.empty() && sentMsg->photo.back()) {
         std::string obtainedId = sentMsg->photo.back()->fileId;
-        photoFileIdCache_[photoUrlOrFileId] = obtainedId;
+        {
+            std::unique_lock<std::shared_mutex> writeLock(cacheMutex_);
+            photoFileIdCache_[photoUrlOrFileId] = obtainedId;
+        }
         if (fileIdOut) {
             *fileIdOut = obtainedId;
         }
@@ -194,11 +203,13 @@ void TgBotMessenger::setRetryConfig(const RetryConfig& config) {
 
 void TgBotMessenger::cachePhotoFileId(const std::string& photoUrl, const std::string& fileId) {
     if (!photoUrl.empty() && !fileId.empty()) {
+        std::unique_lock<std::shared_mutex> writeLock(cacheMutex_);
         photoFileIdCache_[photoUrl] = fileId;
     }
 }
 
 std::string TgBotMessenger::getCachedPhotoFileId(const std::string& photoUrl) const {
+    std::shared_lock<std::shared_mutex> readLock(cacheMutex_);
     auto it = photoFileIdCache_.find(photoUrl);
     if (it != photoFileIdCache_.end()) {
         return it->second;
