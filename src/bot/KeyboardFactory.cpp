@@ -26,6 +26,9 @@ InlineKeyboard KeyboardFactory::createMainMenuKeyboard() {
         },
         {
             {"📜 История", "menu:history"},
+            {"🔖 Закладки", "menu:bookmarks"}
+        },
+        {
             {"ℹ️ Помощь", "menu:help"}
         }
     }};
@@ -58,21 +61,17 @@ InlineKeyboard KeyboardFactory::createGenreSelectionKeyboard(
     return kb;
 }
 
-InlineKeyboard KeyboardFactory::createMovieReactionKeyboard(int64_t movieId, const std::string& trailerUrl) {
+InlineKeyboard KeyboardFactory::createMovieReactionKeyboard(
+    int64_t movieId, const std::string& trailerUrl, bool isBookmarked) {
     std::string suffix = (movieId > 0) ? (":" + std::to_string(movieId)) : "";
     InlineKeyboard kb;
-    kb.rows.push_back({
-        {"👍 Понравился", "rec:like" + suffix, ""},
-        {"👎 Не понравился", "rec:dislike" + suffix, ""}
-    });
-    kb.rows.push_back({
-        {"⏭ Следующий", "rec:next" + suffix, ""},
-        {"⭐ Оценить (1-10)", "rec:rate" + suffix, ""}
-    });
+    kb.rows.push_back({{"👍 Понравился", "rec:like" + suffix}, {"👎 Не понравился", "rec:dislike" + suffix}});
+    kb.rows.push_back({{"⏭ Следующий", "rec:next" + suffix}, {"⭐ Оценить (1-10)", "rec:rate" + suffix}});
+    kb.rows.push_back({{isBookmarked ? "✅ В закладках" : "🔖 Буду смотреть", "rec:bookmark" + suffix}});
     if (!trailerUrl.empty()) {
         kb.rows.push_back({{"🎬 Смотреть трейлер", "", trailerUrl}});
     }
-    kb.rows.push_back({{"🏠 В меню", "rec:menu", ""}});
+    kb.rows.push_back({{"🏠 В меню", "rec:menu"}});
     return kb;
 }
 

@@ -251,11 +251,26 @@ TEST(UserSessionTest, EncapsulationMethodsAndTellDontAsk) {
     EXPECT_EQ(session.getCurrentMovieId(), std::nullopt);
     EXPECT_EQ(session.getCurrentMovieTitle(), "");
 
+    // Закладки («Буду смотреть»)
+    EXPECT_FALSE(session.isBookmarked(42));
+    EXPECT_TRUE(session.getBookmarkedMovieIds().empty());
+    EXPECT_TRUE(session.toggleBookmark(42));
+    EXPECT_TRUE(session.isBookmarked(42));
+    EXPECT_EQ(session.getBookmarkedMovieIds().size(), 1);
+    EXPECT_EQ(session.getBookmarkedMovieIds()[0], 42);
+    EXPECT_FALSE(session.toggleBookmark(42));
+    EXPECT_FALSE(session.isBookmarked(42));
+    EXPECT_TRUE(session.getBookmarkedMovieIds().empty());
+
     // Полный сброс
+    session.toggleBookmark(99);
+    EXPECT_TRUE(session.isBookmarked(99));
     session.resetSessionData();
     EXPECT_FALSE(session.hasSelectedGenres());
     EXPECT_FALSE(session.hasRatings());
     EXPECT_FALSE(session.hasCurrentMovie());
+    EXPECT_FALSE(session.isBookmarked(99));
+    EXPECT_TRUE(session.getBookmarkedMovieIds().empty());
     EXPECT_EQ(session.getRatingCount(), 0);
 }
 

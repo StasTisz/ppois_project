@@ -142,6 +142,20 @@ void BrowsingRecommendationsState::handleRate(IDialogStateContext& ctx, UserSess
     ctx.transitionTo(session.userId, BotState::RatingMovie);
 }
 
+void BrowsingRecommendationsState::handleBookmark(
+    IDialogStateContext& ctx, UserSession& session, int64_t movieId) {
+    auto target = resolveTargetMovie(ctx, session, movieId);
+    if (!target) return;
+    bool added = session.toggleBookmark(target->id);
+    if (added) {
+        session.setLastActionNotice("🔖 Фильм «" + target->title + "» сохранен в закладки!");
+    } else {
+        session.setLastActionNotice("🗑️ Фильм «" + target->title + "» удален из закладок.");
+    }
+    session.setCurrentMovie(target);
+    formatAndSendCurrentCard(ctx, session);
+}
+
 void BrowsingRecommendationsState::handleSimilarCallback(
     IDialogStateContext& ctx, UserSession& session, int64_t movieId) {
     auto target = resolveTargetMovie(ctx, session, movieId);
@@ -165,6 +179,8 @@ void BrowsingRecommendationsState::handleCallback(
         handleNext(ctx, session, idNext);
     } else if (auto [matchedRate, idRate] = parseCallbackPayload(cb.data, "rec:rate"); matchedRate) {
         handleRate(ctx, session, idRate);
+    } else if (auto [matchedBkm, idBkm] = parseCallbackPayload(cb.data, "rec:bookmark"); matchedBkm) {
+        handleBookmark(ctx, session, idBkm);
     } else if (cb.data == "rec:menu") {
         ctx.transitionTo(session.userId, BotState::Idle);
     } else if (auto [matchedSim, idSim] = parseCallbackPayload(cb.data, "rec:similar"); matchedSim) {
@@ -184,11 +200,21 @@ void BrowsingRecommendationsState::handleNoMoreRecommendations(
     ctx.transitionTo(session.userId, BotState::Idle);
 }
 
+void BrowsingRecommendationsState::formatAndSendCurrentCard(
+    IDialogStateContext& ctx, UserSession& session) {
+    if (!session.hasCurrentMovie()) {
+        return;
+    }
+    auto movie = *session.getCurrentMovie();
+    sendNextMovieCard(ctx, session, movie);
+}
+
 void BrowsingRecommendationsState::sendNextMovieCard(
     IDialogStateContext& ctx, UserSession& session, core::Movie& movie) {
     auto messenger = ctx.getMessenger();
     if (!messenger) return;
-    auto keyboard = KeyboardFactory::createMovieReactionKeyboard(movie.id, movie.trailerUrl);
+    bool bookmarked = session.isBookmarked(session.getCurrentMovieId().value_or(0));
+    auto keyboard = KeyboardFactory::createMovieReactionKeyboard(movie.id, movie.trailerUrl, bookmarked);
     std::string notice = session.consumeLastActionNotice();
     std::string explanation = ctx.buildRecommendationExplanation(session.userId, movie);
     size_t ratedCount = session.getRatingCount();

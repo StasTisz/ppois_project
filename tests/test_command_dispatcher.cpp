@@ -208,3 +208,99 @@ TEST(CommandDispatcherTest, StatsCommandOutputsMetricsReport) {
     EXPECT_NE(lastMsg.keyboard.findByCallback("menu:recommend"), nullptr);
 }
 
+/**
+ * @test Проверяет команду /bookmarks и /watchlist при пустом списке закладок.
+ */
+TEST(CommandDispatcherTest, BookmarksCommandWhenEmpty) {
+    auto spy = std::make_shared<DispatcherSpyMessenger>();
+    bot::BotStateMachine fsm(spy);
+
+    // 1. Команда /bookmarks
+    fsm.processMessage({12345, 1001, "alice", "/bookmarks"});
+    ASSERT_FALSE(spy->entries.empty());
+    std::string emptyExpected = "🔖 Ваш список закладок «Буду смотреть» пока пуст.\n"
+                                "Вы можете добавить фильм в закладки кнопкой «🔖 Буду смотреть» на карточке фильма.";
+    EXPECT_EQ(spy->entries.back().text, emptyExpected);
+    EXPECT_NE(spy->entries.back().keyboard.findByCallback("menu:recommend"), nullptr);
+
+    // 2. Алиас /watchlist
+    fsm.processMessage({12345, 1001, "alice", "/watchlist"});
+    EXPECT_EQ(spy->entries.back().text, emptyExpected);
+    EXPECT_NE(spy->entries.back().keyboard.findByCallback("menu:bookmarks"), nullptr);
+}
+
+/**
+ * @test Проверяет форматирование списка закладок при наличии сохраненных фильмов.
+ */
+TEST(CommandDispatcherTest, BookmarksCommandWithSavedMovies) {
+    auto spy = std::make_shared<DispatcherSpyMessenger>();
+    bot::BotStateMachine fsm(spy);
+
+    auto& session = fsm.getSession(1001, 12345, "alice");
+    session.toggleBookmark(1);
+
+    fsm.processMessage({12345, 1001, "alice", "/bookmarks"});
+    ASSERT_FALSE(spy->entries.empty());
+
+    const auto& lastMsg = spy->entries.back();
+    EXPECT_NE(lastMsg.text.find("🔖 Ваш список закладок «Буду смотреть»:"), std::string::npos);
+    EXPECT_NE(lastMsg.text.find("Начало (Inception)"), std::string::npos);
+    EXPECT_NE(lastMsg.text.find("2010"), std::string::npos);
+    EXPECT_NE(lastMsg.text.find("8.8/10"), std::string::npos);
+    EXPECT_NE(lastMsg.text.find("Sci-Fi"), std::string::npos);
+    EXPECT_FALSE(lastMsg.keyboard.empty());
+    EXPECT_NE(lastMsg.keyboard.findByCallback("menu:recommend"), nullptr);
+}
+
+namespace {
+
+class DummyBookmarkContext : public bot::IDialogStateContext {
+public:
+    bot::UserSession& getSession(int64_t, int64_t, const std::string&) override { return session_; }
+    void transitionTo(int64_t, bot::BotState) override {}
+    std::shared_ptr<bot::IBotMessenger> getMessenger() const override { return nullptr; }
+    std::optional<core::Movie> fetchNextMovie(int64_t) override { return std::nullopt; }
+    [[nodiscard]] std::optional<core::Movie> getMovieById(int64_t movieId) const override {
+        if (movieId == 42) {
+            return core::Movie{42, "Матрица", 1999, {"Sci-Fi", "Action"}, "Вачовски",
+                "Описание", 8.7, "", "", "https://youtube.com/watch?v=matrix"};
+        }
+        return std::nullopt;
+    }
+private:
+    bot::UserSession session_;
+};
+
+} // namespace
+
+/**
+ * @test Проверяет форматирование фильма в закладках со ссылкой на трейлер.
+ */
+TEST(CommandDispatcherTest, FormatBookmarksTextWithTrailer) {
+    DummyBookmarkContext ctx;
+    bot::UserSession session;
+    session.toggleBookmark(42);
+
+    std::string text = bot::CommandDispatcher::formatBookmarksText(session, ctx);
+    EXPECT_NE(text.find("🔖 Ваш список закладок «Буду смотреть»:"), std::string::npos);
+    EXPECT_NE(text.find("Матрица"), std::string::npos);
+    EXPECT_NE(text.find("(1999)"), std::string::npos);
+    EXPECT_NE(text.find("★ 8.7/10"), std::string::npos);
+    EXPECT_NE(text.find("Sci-Fi, Action"), std::string::npos);
+    EXPECT_NE(text.find("🎬 Трейлер: https://youtube.com/watch?v=matrix"), std::string::npos);
+}
+
+/**
+ * @test Проверяет, что команда /help упоминает команду /bookmarks.
+ */
+TEST(CommandDispatcherTest, HelpCommandMentionsBookmarks) {
+    auto spy = std::make_shared<DispatcherSpyMessenger>();
+    bot::BotStateMachine fsm(spy);
+
+    fsm.processMessage({12345, 1001, "alice", "/help"});
+    ASSERT_FALSE(spy->entries.empty());
+
+    const auto& lastMsg = spy->entries.back();
+    EXPECT_NE(lastMsg.text.find("/bookmarks"), std::string::npos);
+}
+

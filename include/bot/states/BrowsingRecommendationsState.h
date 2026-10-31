@@ -38,7 +38,9 @@ private:
     void handleDislike(IDialogStateContext& ctx, UserSession& session, int64_t movieId);
     void handleNext(IDialogStateContext& ctx, UserSession& session, int64_t movieId);
     void handleRate(IDialogStateContext& ctx, UserSession& session, int64_t movieId);
+    void handleBookmark(IDialogStateContext& ctx, UserSession& session, int64_t movieId);
     void handleSimilarCallback(IDialogStateContext& ctx, UserSession& session, int64_t movieId);
+    void formatAndSendCurrentCard(IDialogStateContext& ctx, UserSession& session);
 
     [[nodiscard]] std::optional<core::Movie> resolveTargetMovie(
         IDialogStateContext& ctx, const UserSession& session, int64_t movieId) const;

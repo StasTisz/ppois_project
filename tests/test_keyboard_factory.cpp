@@ -82,7 +82,7 @@ TEST(KeyboardFactoryTest, MovieReactionButtonsLayout) {
     auto kb = bot::KeyboardFactory::createMovieReactionKeyboard();
 
     EXPECT_FALSE(kb.empty());
-    EXPECT_EQ(kb.buttonCount(), 5);
+    EXPECT_EQ(kb.buttonCount(), 6);
 
     const auto* likeBtn = kb.findByCallback("rec:like");
     ASSERT_NE(likeBtn, nullptr);
@@ -99,6 +99,10 @@ TEST(KeyboardFactoryTest, MovieReactionButtonsLayout) {
     const auto* rateBtn = kb.findByCallback("rec:rate");
     ASSERT_NE(rateBtn, nullptr);
     EXPECT_EQ(rateBtn->text, "⭐ Оценить (1-10)");
+
+    const auto* bookmarkBtn = kb.findByCallback("rec:bookmark");
+    ASSERT_NE(bookmarkBtn, nullptr);
+    EXPECT_EQ(bookmarkBtn->text, "🔖 Буду смотреть");
 
     const auto* menuBtn = kb.findByCallback("rec:menu");
     ASSERT_NE(menuBtn, nullptr);
@@ -133,11 +137,12 @@ TEST(KeyboardFactoryTest, MainMenuKeyboard) {
     auto kb = bot::KeyboardFactory::createMainMenuKeyboard();
 
     EXPECT_FALSE(kb.empty());
-    EXPECT_EQ(kb.buttonCount(), 4);
+    EXPECT_EQ(kb.buttonCount(), 5);
 
     EXPECT_NE(kb.findByCallback("menu:recommend"), nullptr);
     EXPECT_NE(kb.findByCallback("menu:genres"), nullptr);
     EXPECT_NE(kb.findByCallback("menu:history"), nullptr);
+    EXPECT_NE(kb.findByCallback("menu:bookmarks"), nullptr);
     EXPECT_NE(kb.findByCallback("menu:help"), nullptr);
 }
 
@@ -192,6 +197,10 @@ TEST(KeyboardFactoryTest, MovieReactionKeyboardBindsMovieId) {
     ASSERT_NE(boundRate, nullptr);
     EXPECT_EQ(boundRate->callbackData, "rec:rate:42");
 
+    const auto* boundBookmark = boundKb.findByCallback("rec:bookmark:42");
+    ASSERT_NE(boundBookmark, nullptr);
+    EXPECT_EQ(boundBookmark->callbackData, "rec:bookmark:42");
+
     const auto* menuBtn = boundKb.findByCallback("rec:menu");
     ASSERT_NE(menuBtn, nullptr);
     EXPECT_EQ(menuBtn->callbackData, "rec:menu");
@@ -201,21 +210,36 @@ TEST(KeyboardFactoryTest, MovieReactionKeyboardBindsMovieId) {
  * @test Проверяет создание кнопки трейлера при наличии и отсутствии trailerUrl.
  */
 TEST(KeyboardFactoryTest, MovieReactionKeyboardWithTrailerUrl) {
-    // 1. Без ссылки на трейлер: 5 кнопок, кнопки трейлера нет
+    // 1. Без ссылки на трейлер: 6 кнопок, кнопки трейлера нет
     auto noTrailerKb = bot::KeyboardFactory::createMovieReactionKeyboard(10, "");
-    EXPECT_EQ(noTrailerKb.buttonCount(), 5);
+    EXPECT_EQ(noTrailerKb.buttonCount(), 6);
     EXPECT_EQ(noTrailerKb.findByUrl("https://youtube.com/watch?v=123"), nullptr);
 
-    // 2. С валидной ссылкой на трейлер: 6 кнопок, есть кнопка "🎬 Смотреть трейлер" с url
+    // 2. С валидной ссылкой на трейлер: 7 кнопок, есть кнопка "🎬 Смотреть трейлер" с url
     std::string testTrailerUrl = "https://www.youtube.com/watch?v=PLl99DlL6b4";
     auto withTrailerKb = bot::KeyboardFactory::createMovieReactionKeyboard(10, testTrailerUrl);
-    EXPECT_EQ(withTrailerKb.buttonCount(), 6);
+    EXPECT_EQ(withTrailerKb.buttonCount(), 7);
 
     const auto* trailerBtn = withTrailerKb.findByUrl(testTrailerUrl);
     ASSERT_NE(trailerBtn, nullptr);
     EXPECT_EQ(trailerBtn->text, "🎬 Смотреть трейлер");
     EXPECT_EQ(trailerBtn->url, testTrailerUrl);
     EXPECT_TRUE(trailerBtn->callbackData.empty());
+}
+
+/**
+ * @test Проверяет отображение статуса закладки в кнопке реакции (🔖 Буду смотреть vs ✅ В закладках).
+ */
+TEST(KeyboardFactoryTest, MovieReactionKeyboardBookmarkToggleLabels) {
+    auto unbookmarkedKb = bot::KeyboardFactory::createMovieReactionKeyboard(10, "", false);
+    const auto* btn1 = unbookmarkedKb.findByCallback("rec:bookmark:10");
+    ASSERT_NE(btn1, nullptr);
+    EXPECT_EQ(btn1->text, "🔖 Буду смотреть");
+
+    auto bookmarkedKb = bot::KeyboardFactory::createMovieReactionKeyboard(10, "", true);
+    const auto* btn2 = bookmarkedKb.findByCallback("rec:bookmark:10");
+    ASSERT_NE(btn2, nullptr);
+    EXPECT_EQ(btn2->text, "✅ В закладках");
 }
 
 

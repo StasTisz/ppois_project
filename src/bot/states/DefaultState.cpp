@@ -1,4 +1,5 @@
 #include "bot/states/DefaultState.h"
+#include "bot/CommandDispatcher.h"
 #include "bot/KeyboardFactory.h"
 
 #include <sstream>
@@ -36,6 +37,7 @@ void DefaultState::onEnter(IDialogStateContext& ctx, UserSession& session) {
             "• /recommend — Получить рекомендации фильмов\n"
             "• /genres — Настроить любимые жанры\n"
             "• /history — История оценок\n"
+            "• /bookmarks — Список «Буду смотреть»\n"
             "• /help — Справка по командам",
             KeyboardFactory::createMainMenuKeyboard());
     }
@@ -60,6 +62,7 @@ void DefaultState::handleHelpCommand(IDialogStateContext& ctx, const UserSession
             "/recommend — Начать подбор рекомендаций на основе ваших предпочтений\n"
             "/genres — Изменить список любимых жанров\n"
             "/history — История просмотренных и оцененных фильмов\n"
+            "/bookmarks — Список фильмов «Буду смотреть»\n"
             "/similar — Поиск похожих фильмов во время просмотра\n"
             "/help — Справка по командам\n"
             "/menu — Вернуться в главное меню",
@@ -77,6 +80,8 @@ void DefaultState::handleMessage(
         onEnter(ctx, session);
     } else if (msg.text == "/help") {
         handleHelpCommand(ctx, session);
+    } else if (msg.text == "/bookmarks" || msg.text == "/watchlist") {
+        handleBookmarksCallback(ctx, session);
     } else if (auto messenger = ctx.getMessenger()) {
         messenger->sendMessageWithKeyboard(session.chatId,
             "Главное меню:\nИспользуйте кнопки меню ниже или команды /recommend и /genres.",
@@ -104,6 +109,13 @@ void DefaultState::handleHistoryCallback(IDialogStateContext& ctx, const UserSes
     messenger->sendMessageWithKeyboard(session.chatId, text, KeyboardFactory::createMainMenuKeyboard());
 }
 
+void DefaultState::handleBookmarksCallback(IDialogStateContext& ctx, const UserSession& session) {
+    auto messenger = ctx.getMessenger();
+    if (!messenger) return;
+    std::string text = CommandDispatcher::formatBookmarksText(session, ctx);
+    messenger->sendMessageWithKeyboard(session.chatId, text, KeyboardFactory::createMainMenuKeyboard());
+}
+
 void DefaultState::handleCallback(
     IDialogStateContext& ctx, UserSession& session, const IncomingCallback& cb) {
     if (cb.data == "menu:genres") {
@@ -112,6 +124,8 @@ void DefaultState::handleCallback(
         handleRecommendCommand(ctx, session);
     } else if (cb.data == "menu:history") {
         handleHistoryCallback(ctx, session);
+    } else if (cb.data == "menu:bookmarks") {
+        handleBookmarksCallback(ctx, session);
     } else if (cb.data == "menu:help") {
         handleHelpCommand(ctx, session);
     }

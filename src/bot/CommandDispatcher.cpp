@@ -1,6 +1,7 @@
 #include "bot/CommandDispatcher.h"
 #include "bot/KeyboardFactory.h"
 
+#include <algorithm>
 #include <sstream>
 #include <utility>
 
@@ -38,6 +39,7 @@ bool CommandDispatcher::dispatch(const IncomingMessage& msg) {
     else if (cmd == "/recommend") handleRecommend(session);
     else if (cmd == "/genres") handleGenres(session);
     else if (cmd == "/history") handleHistory(session);
+    else if (cmd == "/bookmarks" || cmd == "/watchlist") handleBookmarks(session);
     else if (cmd == "/stats") handleStats(session);
     else if (cmd == "/help") handleHelp(session);
     else if (cmd == "/menu") context_.transitionTo(session.userId, BotState::Idle);
@@ -93,6 +95,49 @@ void CommandDispatcher::handleHistory(const UserSession& session) {
     messenger_->sendMessageWithKeyboard(session.chatId, text, KeyboardFactory::createMainMenuKeyboard());
 }
 
+static std::string formatSingleBookmark(size_t index, const core::Movie& movie) {
+    std::ostringstream oss;
+    oss << index << ". " << movie.title;
+    if (movie.year > 0) oss << " (" << movie.year << ")";
+    if (movie.ratingAvg > 0.0) oss << " [★ " << movie.ratingAvg << "/10]";
+    if (!movie.genres.empty()) {
+        oss << "\n   🎭 Жанры: ";
+        for (size_t g = 0; g < movie.genres.size(); ++g) {
+            oss << movie.genres[g] << (g + 1 < movie.genres.size() ? ", " : "");
+        }
+    }
+    if (!movie.trailerUrl.empty()) {
+        oss << "\n   🎬 Трейлер: " << movie.trailerUrl;
+    }
+    oss << "\n\n";
+    return oss.str();
+}
+
+std::string CommandDispatcher::formatBookmarksText(const UserSession& session, const IDialogStateContext& ctx) {
+    auto bookmarked = session.getBookmarkedMovieIds();
+    if (bookmarked.empty()) {
+        return "🔖 Ваш список закладок «Буду смотреть» пока пуст.\n"
+               "Вы можете добавить фильм в закладки кнопкой «🔖 Буду смотреть» на карточке фильма.";
+    }
+    std::sort(bookmarked.begin(), bookmarked.end());
+    std::ostringstream oss;
+    oss << "🔖 Ваш список закладок «Буду смотреть»:\n\n";
+    size_t index = 1;
+    for (int64_t movieId : bookmarked) {
+        auto movieOpt = ctx.getMovieById(movieId);
+        if (movieOpt) oss << formatSingleBookmark(index++, *movieOpt);
+        else oss << index++ << ". Фильм #" << movieId << "\n\n";
+    }
+    oss << "Используйте меню ниже для дальнейших действий:";
+    return oss.str();
+}
+
+void CommandDispatcher::handleBookmarks(const UserSession& session) {
+    if (!messenger_) return;
+    std::string text = formatBookmarksText(session, context_);
+    messenger_->sendMessageWithKeyboard(session.chatId, text, KeyboardFactory::createMainMenuKeyboard());
+}
+
 void CommandDispatcher::handleStats(const UserSession& session) {
     if (!messenger_) return;
     std::string report = context_.getMetricsReport();
@@ -106,7 +151,8 @@ std::string CommandDispatcher::buildHelpText() {
            "📋 Команды:\n"
            "• /start — Запуск онбординга | • /recommend — Подбор рекомендаций\n"
            "• /genres — Настройка жанров | • /history — История оценок\n"
-           "• /similar — Поиск похожих | • /stats — Аналитика | • /help — Справка\n\n"
+           "• /bookmarks — Список «Буду смотреть» | • /similar — Поиск похожих\n"
+           "• /stats — Аналитика | • /help — Справка\n\n"
            "🎬 Кнопки под карточкой фильма:\n"
            "• 👍 Понравился (10/10) | • 👎 Не понравился (1/10)\n"
            "• ⭐ Оценить (1-10) | • ⏭ Следующий | • 🔍 Похожие\n\n"

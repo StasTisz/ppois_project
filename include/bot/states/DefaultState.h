@@ -29,6 +29,7 @@ private:
     void handleRecommendCommand(IDialogStateContext& ctx, UserSession& session);
     void handleHelpCommand(IDialogStateContext& ctx, const UserSession& session);
     void handleHistoryCallback(IDialogStateContext& ctx, const UserSession& session);
+    void handleBookmarksCallback(IDialogStateContext& ctx, const UserSession& session);
     [[nodiscard]] std::string formatHistoryText(IDialogStateContext& ctx, const UserSession& session) const;
 };
 

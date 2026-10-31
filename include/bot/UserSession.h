@@ -54,6 +54,9 @@ struct UserSession {
     /// Множество ID фильмов, пропущенных кнопкой «Следующий» без оценки.
     std::unordered_set<int64_t> skippedMovieIds;
 
+    /// Множество ID фильмов, добавленных в список закладок («Буду смотреть»).
+    std::unordered_set<int64_t> bookmarkedMovieIds;
+
     /// Краткое уведомление о последнем действии пользователя (для следующей карточки).
     std::string lastActionNotice;
 
@@ -164,6 +167,26 @@ struct UserSession {
         return skippedMovieIds.find(movieId) != skippedMovieIds.end();
     }
 
+    // --- Методы инкапсуляции закладок («Буду смотреть») ---
+
+    bool toggleBookmark(int64_t movieId) {
+        auto it = bookmarkedMovieIds.find(movieId);
+        if (it != bookmarkedMovieIds.end()) {
+            bookmarkedMovieIds.erase(it);
+            return false;
+        }
+        bookmarkedMovieIds.insert(movieId);
+        return true;
+    }
+
+    [[nodiscard]] bool isBookmarked(int64_t movieId) const {
+        return bookmarkedMovieIds.find(movieId) != bookmarkedMovieIds.end();
+    }
+
+    [[nodiscard]] std::vector<int64_t> getBookmarkedMovieIds() const {
+        return {bookmarkedMovieIds.begin(), bookmarkedMovieIds.end()};
+    }
+
     // --- Методы уведомления о последнем действии ---
 
     void setLastActionNotice(std::string notice) {
@@ -191,6 +214,7 @@ struct UserSession {
         currentMovie.reset();
         movieRatings.clear();
         skippedMovieIds.clear();
+        bookmarkedMovieIds.clear();
         lastActionNotice.clear();
     }
 };

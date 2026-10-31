@@ -41,11 +41,21 @@ public:
      */
     bool dispatch(const IncomingMessage& msg);
 
+    /**
+     * @brief Форматирует список закладок («Буду смотреть») пользователя.
+     * @param session Сессия пользователя.
+     * @param ctx Контекст диалога.
+     * @return Строка с отформатированным списком фильмов или сообщением о пустом списке.
+     */
+    [[nodiscard]] static std::string formatBookmarksText(
+        const UserSession& session, const IDialogStateContext& ctx);
+
 private:
     void handleStart(UserSession& session);
     void handleRecommend(UserSession& session);
     void handleGenres(UserSession& session);
     void handleHistory(const UserSession& session);
+    void handleBookmarks(const UserSession& session);
     void handleStats(const UserSession& session);
     void handleHelp(const UserSession& session);
 

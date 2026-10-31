@@ -44,9 +44,11 @@ public:
      * @brief Создает клавиатуру реакций под карточкой фильма.
      * @param movieId Идентификатор фильма для защиты от кликов по старым карточкам.
      * @param trailerUrl Ссылка на YouTube-трейлер фильма (опционально).
+     * @param isBookmarked Флаг нахождения фильма в закладках пользователя.
      * @return Объект InlineKeyboard.
      */
-    static InlineKeyboard createMovieReactionKeyboard(int64_t movieId = 0, const std::string& trailerUrl = "");
+    static InlineKeyboard createMovieReactionKeyboard(
+        int64_t movieId = 0, const std::string& trailerUrl = "", bool isBookmarked = false);
 
     /**
      * @brief Создает клавиатуру для выставления оценки фильму от 1 до 10.

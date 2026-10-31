@@ -22,6 +22,7 @@ public:
     struct SentMessage {
         int64_t chatId{0};
         std::string text;
+        bot::InlineKeyboard keyboard;
     };
 
     struct AnsweredCallback {
@@ -30,7 +31,11 @@ public:
     };
 
     void sendMessage(int64_t chatId, const std::string& text) override {
-        sentMessages.push_back({chatId, text});
+        sentMessages.push_back({chatId, text, {}});
+    }
+
+    void sendMessageWithKeyboard(int64_t chatId, const std::string& text, const bot::InlineKeyboard& keyboard) override {
+        sentMessages.push_back({chatId, text, keyboard});
     }
 
     void answerCallbackQuery(const std::string& callbackId, const std::string& text = "") override {
@@ -226,5 +231,58 @@ TEST(BotFsmTest, HistoricalCardCallbackRespectsMovieId) {
     EXPECT_EQ(fsm.getSession(1001).state, bot::BotState::RatingMovie);
     ASSERT_TRUE(fsm.getSession(1001).currentMovie.has_value());
     EXPECT_EQ(fsm.getSession(1001).currentMovie->id, 3);
+}
+
+/**
+ * @test Проверяет цикл добавления и удаления фильма из закладок через callback rec:bookmark.
+ */
+TEST(BotFsmTest, ToggleBookmarkCallbackFlow) {
+    auto mock = std::make_shared<MockBotMessenger>();
+    bot::BotStateMachine fsm(mock);
+    fsm.getSession(1001, 12345, "alice").selectedGenres = {"Sci-Fi"};
+    fsm.transitionTo(1001, bot::BotState::BrowsingRecommendations);
+
+    ASSERT_TRUE(fsm.getSession(1001).currentMovie.has_value());
+    int64_t currentId = fsm.getSession(1001).currentMovie->id;
+
+    fsm.processCallback({"cb_bkm1", 12345, 1001, 10, "rec:bookmark"});
+    EXPECT_TRUE(fsm.getSession(1001).isBookmarked(currentId));
+    ASSERT_FALSE(mock->sentMessages.empty());
+    EXPECT_NE(mock->sentMessages.back().text.find("сохранен в закладки!"), std::string::npos);
+
+    fsm.processCallback({"cb_bkm2", 12345, 1001, 10, "rec:bookmark"});
+    EXPECT_FALSE(fsm.getSession(1001).isBookmarked(currentId));
+    EXPECT_NE(mock->sentMessages.back().text.find("удален из закладок."), std::string::npos);
+}
+
+/**
+ * @test Проверяет переключение закладки для конкретного фильма по суффиксу ID: rec:bookmark:<id>.
+ */
+TEST(BotFsmTest, HistoricalBookmarkCallbackWithMovieId) {
+    auto mock = std::make_shared<MockBotMessenger>();
+    bot::BotStateMachine fsm(mock);
+    fsm.getSession(1001, 12345, "alice").selectedGenres = {"Drama"};
+    fsm.transitionTo(1001, bot::BotState::BrowsingRecommendations);
+
+    fsm.processCallback({"cb_bkm_hist1", 12345, 1001, 10, "rec:bookmark:2"});
+    EXPECT_TRUE(fsm.getSession(1001).isBookmarked(2));
+
+    fsm.processCallback({"cb_bkm_hist2", 12345, 1001, 10, "rec:bookmark:2"});
+    EXPECT_FALSE(fsm.getSession(1001).isBookmarked(2));
+}
+
+/**
+ * @test Проверяет открытие списка закладок из главного меню по callback menu:bookmarks.
+ */
+TEST(BotFsmTest, MainMenuBookmarksCallback) {
+    auto mock = std::make_shared<MockBotMessenger>();
+    bot::BotStateMachine fsm(mock);
+    auto& session = fsm.getSession(1001, 12345, "alice");
+    session.toggleBookmark(1);
+
+    fsm.processCallback({"cb_menu_bkm", 12345, 1001, 10, "menu:bookmarks"});
+    ASSERT_FALSE(mock->sentMessages.empty());
+    EXPECT_NE(mock->sentMessages.back().text.find("🔖 Ваш список закладок «Буду смотреть»:"), std::string::npos);
+    EXPECT_NE(mock->sentMessages.back().text.find("Начало (Inception)"), std::string::npos);
 }
 
