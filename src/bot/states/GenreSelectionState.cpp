@@ -50,17 +50,20 @@ void GenreSelectionState::handleDone(IDialogStateContext& ctx, UserSession& sess
     ctx.transitionTo(session.userId, BotState::BrowsingRecommendations);
 }
 
+void GenreSelectionState::handleUnknownGenre(
+    IDialogStateContext& ctx, UserSession& session, const std::string& text) {
+    if (auto messenger = ctx.getMessenger()) {
+        messenger->sendMessage(session.chatId,
+            "⚠️ Не удалось распознать жанр: \"" + text + "\".\n"
+            "Пожалуйста, используйте кнопки меню ниже для выбора жанров.");
+    }
+    sendStatusMessage(ctx, session);
+}
+
 void GenreSelectionState::handleTextGenre(
     IDialogStateContext& ctx, UserSession& session, const std::string& text) {
-    auto messenger = ctx.getMessenger();
-    core::GenreBit bit = core::stringToGenreBit(text);
-    if (bit == core::GenreBit::Unknown) {
-        if (messenger) {
-            messenger->sendMessage(session.chatId,
-                "⚠️ Не удалось распознать жанр: \"" + text + "\".\n"
-                "Пожалуйста, используйте кнопки меню ниже для выбора жанров.");
-        }
-        sendStatusMessage(ctx, session);
+    if (core::stringToGenreBit(text) == core::GenreBit::Unknown) {
+        handleUnknownGenre(ctx, session, text);
         return;
     }
 

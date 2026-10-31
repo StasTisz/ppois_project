@@ -310,7 +310,7 @@ void TelegramBotApp::logStartupInfo() {
 void TelegramBotApp::run() {
     isRunning_ = true;
     logStartupInfo();
-    TgBot::TgLongPoll longPoll(bot_, 100, config_.longPollTimeoutSeconds);
+    TgBot::TgLongPoll longPoll(bot_, kDefaultLongPollLimit, config_.longPollTimeoutSeconds);
     while (isRunning_) {
         try {
             longPoll.start();

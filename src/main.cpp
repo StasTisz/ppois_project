@@ -73,6 +73,19 @@ bool initDatabase(repository::DatabaseManager& dbManager, const bot::BotConfig& 
     return true;
 }
 
+void setupStateMachine(
+    bot::TelegramBotApp& app,
+    const std::shared_ptr<recommendation::RecommendationService>& recService,
+    const std::shared_ptr<repository::SQLiteMovieRepository>& movieRepo) {
+    auto sm = app.getStateMachine();
+    if (!sm) return;
+    sm->setMetricsCollector(recService->getMetricsCollector());
+    sm->setPosterCacheCallback([movieRepo](int64_t movieId, const std::string& fileId) {
+        movieRepo->updatePosterFileId(movieId, fileId);
+        std::cout << "[PosterCache] Сохранен Telegram file_id для фильма ID=" << movieId << "\n";
+    });
+}
+
 int runBotApplication(
     const bot::BotConfig& config,
     std::shared_ptr<recommendation::RecommendationService> recService,
@@ -81,14 +94,7 @@ int runBotApplication(
     std::cout << "[INFO] Инициализация TelegramBotApp с RecommendationService и базой данных SQLite...\n";
     try {
         bot::TelegramBotApp app(config, recService, userRepo);
-        auto sm = app.getStateMachine();
-        if (sm) {
-            sm->setMetricsCollector(recService->getMetricsCollector());
-            sm->setPosterCacheCallback([movieRepo](int64_t movieId, const std::string& fileId) {
-                movieRepo->updatePosterFileId(movieId, fileId);
-                std::cout << "[PosterCache] Сохранен Telegram file_id для фильма ID=" << movieId << "\n";
-            });
-        }
+        setupStateMachine(app, recService, movieRepo);
         g_runningApp = &app;
         app.run();
         g_runningApp = nullptr;
@@ -100,16 +106,25 @@ int runBotApplication(
     return 0;
 }
 
-} // namespace
-
-int main() {
+void setupConsoleAndSignals() {
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 #endif
     std::signal(SIGINT, handleSignal);
     printBanner();
+}
 
+void printNoTokenNotice() {
+    std::cout << "[INFO] Переменная окружения BOT_TOKEN не задана.\n"
+              << "       База данных SQLite и RecommendationService готовы.\n"
+              << "       Для сетевого запуска укажите токен в .env: export BOT_TOKEN=\"...\"\n";
+}
+
+} // namespace
+
+int main() {
+    setupConsoleAndSignals();
     bot::BotConfig config = bot::BotConfig::fromEnv();
     repository::DatabaseManager dbManager;
     if (!initDatabase(dbManager, config)) return 1;
@@ -120,9 +135,7 @@ int main() {
     std::cout << "[OK] База данных готова! Всего фильмов в каталоге: " << movieRepo->count() << "\n\n";
 
     if (!config.isValid()) {
-        std::cout << "[INFO] Переменная окружения BOT_TOKEN не задана.\n"
-                  << "       База данных SQLite и RecommendationService готовы.\n"
-                  << "       Для сетевого запуска укажите токен в .env: export BOT_TOKEN=\"...\"\n";
+        printNoTokenNotice();
         return 0;
     }
     return runBotApplication(config, recService, movieRepo, userRepo);

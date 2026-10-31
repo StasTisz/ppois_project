@@ -1,5 +1,7 @@
 #pragma once
 
+#include "bot/BotConstants.h"
+
 #include <vector>
 #include <queue>
 #include <thread>
@@ -21,34 +23,8 @@ namespace bot {
  */
 class ThreadPool {
 public:
-    explicit ThreadPool(size_t threads = 4) : stop_(false) {
-        threads = std::max<size_t>(1, threads);
-        workers_.reserve(threads);
-        for (size_t i = 0; i < threads; ++i) {
-            workers_.emplace_back([this]() {
-                while (true) {
-                    std::function<void()> task;
-                    {
-                        std::unique_lock<std::mutex> lock(queueMutex_);
-                        cv_.wait(lock, [this]() {
-                            return stop_.load() || !tasks_.empty();
-                        });
-
-                        if (stop_.load() && tasks_.empty()) {
-                            return;
-                        }
-
-                        task = std::move(tasks_.front());
-                        tasks_.pop();
-                    }
-                    try {
-                        task();
-                    } catch (...) {
-                        // Поглощаем исключения, чтобы рабочий поток не завершался аварийно
-                    }
-                }
-            });
-        }
+    explicit ThreadPool(size_t threads = kDefaultThreadPoolSize) : stop_(false) {
+        initWorkers(std::max<size_t>(1, threads));
     }
 
     ~ThreadPool() {
@@ -101,6 +77,40 @@ public:
     }
 
 private:
+    void initWorkers(size_t threadCount) {
+        workers_.reserve(threadCount);
+        for (size_t i = 0; i < threadCount; ++i) {
+            workers_.emplace_back([this]() { workerLoop(); });
+        }
+    }
+
+    bool getNextTask(std::function<void()>& task) {
+        std::unique_lock<std::mutex> lock(queueMutex_);
+        cv_.wait(lock, [this]() {
+            return stop_.load() || !tasks_.empty();
+        });
+        if (stop_.load() && tasks_.empty()) {
+            return false;
+        }
+        task = std::move(tasks_.front());
+        tasks_.pop();
+        return true;
+    }
+
+    void workerLoop() {
+        while (true) {
+            std::function<void()> task;
+            if (!getNextTask(task)) {
+                return;
+            }
+            try {
+                task();
+            } catch (...) {
+                // Поглощаем исключения, чтобы рабочий поток не завершался аварийно
+            }
+        }
+    }
+
     std::vector<std::thread> workers_;
     std::queue<std::function<void()>> tasks_;
     std::mutex queueMutex_;

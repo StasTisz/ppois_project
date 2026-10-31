@@ -27,6 +27,7 @@ public:
 
 private:
     void handleDone(IDialogStateContext& ctx, UserSession& session);
+    void handleUnknownGenre(IDialogStateContext& ctx, UserSession& session, const std::string& text);
     void handleTextGenre(IDialogStateContext& ctx, UserSession& session, const std::string& text);
     void handleToggleCallback(
         IDialogStateContext& ctx, UserSession& session, const std::string& data, int32_t messageId);

@@ -244,8 +244,12 @@ TEST(UserSessionTest, EncapsulationMethodsAndTellDontAsk) {
     session.setCurrentMovie(m);
     EXPECT_TRUE(session.hasCurrentMovie());
     EXPECT_EQ(session.getCurrentMovie()->id, 55);
+    EXPECT_EQ(session.getCurrentMovieId(), std::optional<int64_t>(55));
+    EXPECT_EQ(session.getCurrentMovieTitle(), "Test Movie");
     session.clearCurrentMovie();
     EXPECT_FALSE(session.hasCurrentMovie());
+    EXPECT_EQ(session.getCurrentMovieId(), std::nullopt);
+    EXPECT_EQ(session.getCurrentMovieTitle(), "");
 
     // Полный сброс
     session.resetSessionData();
@@ -269,4 +273,5 @@ TEST(BotConstantsTest, VerifyDefaultValues) {
     EXPECT_EQ(bot::kDebounceTimeoutMs, 300);
     EXPECT_EQ(bot::kDefaultThreadPoolSize, 4);
     EXPECT_EQ(bot::kDefaultLongPollTimeoutSeconds, 10);
+    EXPECT_EQ(bot::kDefaultLongPollLimit, 100);
 }

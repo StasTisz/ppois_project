@@ -20,15 +20,19 @@ void BrowsingRecommendationsState::onEnter(IDialogStateContext& ctx, UserSession
     showNextMovie(ctx, session);
 }
 
+void BrowsingRecommendationsState::handleNextCommand(IDialogStateContext& ctx, UserSession& session) {
+    if (session.hasCurrentMovie()) {
+        session.markSkipped(*session.getCurrentMovieId());
+    }
+    showNextMovie(ctx, session);
+}
+
 void BrowsingRecommendationsState::handleMessage(
     IDialogStateContext& ctx, UserSession& session, const IncomingMessage& msg) {
     if (msg.text == "/rate") {
         ctx.transitionTo(session.userId, BotState::RatingMovie);
     } else if (msg.text == "/next") {
-        if (session.hasCurrentMovie()) {
-            session.markSkipped(session.getCurrentMovie()->id);
-        }
-        showNextMovie(ctx, session);
+        handleNextCommand(ctx, session);
     } else if (msg.text == "/genres") {
         ctx.transitionTo(session.userId, BotState::SelectingGenres);
     } else if (msg.text == "/menu" || msg.text == "/start") {

@@ -20,7 +20,7 @@ void RatingState::onEnter(IDialogStateContext& ctx, UserSession& session) {
     if (!messenger) {
         return;
     }
-    std::string movieTitle = session.hasCurrentMovie() ? session.getCurrentMovie()->title : "текущий фильм";
+    std::string movieTitle = session.hasCurrentMovie() ? session.getCurrentMovieTitle() : "текущий фильм";
     messenger->sendMessageWithKeyboard(
         session.chatId,
         "⭐ Оценка фильма «" + movieTitle + "»:\n"
@@ -41,7 +41,7 @@ std::optional<int> RatingState::parseRatingText(const std::string& text) {
 
 void RatingState::applyRating(IDialogStateContext& ctx, UserSession& session, int score) {
     if (session.hasCurrentMovie()) {
-        int64_t movieId = session.getCurrentMovie()->id;
+        int64_t movieId = *session.getCurrentMovieId();
         session.recordRating(movieId, score);
         ctx.recordMovieRating(session.userId, movieId, score);
         ctx.recordReaction(session.userId, movieId, score >= kPositiveRatingThreshold);

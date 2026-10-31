@@ -142,6 +142,14 @@ struct UserSession {
         return currentMovie;
     }
 
+    [[nodiscard]] std::optional<int64_t> getCurrentMovieId() const {
+        return currentMovie.has_value() ? std::optional<int64_t>(currentMovie->id) : std::nullopt;
+    }
+
+    [[nodiscard]] std::string getCurrentMovieTitle() const {
+        return currentMovie.has_value() ? currentMovie->title : "";
+    }
+
     // --- Методы инкапсуляции пропусков (Skipped) ---
 
     void markSkipped(int64_t movieId) {

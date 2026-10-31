@@ -32,6 +32,7 @@ private:
     void showNextMovie(IDialogStateContext& ctx, UserSession& session);
     void handleNoMoreRecommendations(IDialogStateContext& ctx, UserSession& session);
     void sendNextMovieCard(IDialogStateContext& ctx, UserSession& session, core::Movie& movie);
+    void handleNextCommand(IDialogStateContext& ctx, UserSession& session);
     void handleSimilarCommand(IDialogStateContext& ctx, UserSession& session);
     void handleLike(IDialogStateContext& ctx, UserSession& session, int64_t movieId);
     void handleDislike(IDialogStateContext& ctx, UserSession& session, int64_t movieId);

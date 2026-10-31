@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
+      - 'feature/*'
       - 'feature/**'
   pull_request:
     branches:
       - main
+      - 'feature/*'
       - 'feature/**'
 
 concurrency:
@@ -40,8 +42,7 @@ jobs:
             zlib1g-dev \
             libboost-system-dev \
             libcurl4-openssl-dev \
-            cppcheck \
-            clang-format
+            cppcheck
 
       - name: Cache vcpkg binary cache
         uses: actions/cache@v4
@@ -51,45 +52,117 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-vcpkg-
 
-      - name: Code Style & Line Length Check
+      - name: Locate vcpkg Toolchain
+        run: |
+          if [ -z "$VCPKG_INSTALLATION_ROOT" ]; then
+            if [ -d "/usr/local/share/vcpkg" ]; then
+              echo "VCPKG_INSTALLATION_ROOT=/usr/local/share/vcpkg" >> $GITHUB_ENV
+            elif [ -d "$HOME/vcpkg" ]; then
+              echo "VCPKG_INSTALLATION_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
+            fi
+          fi
+
+      - name: Code Style & Checklist Enforcement
         run: |
           python3 -c '
-          import os, sys
+          import os, sys, re
+
           dirs = ["include/bot", "src/bot", "src/main.cpp"]
-          long_lines = []
+          files_to_check = []
           for d in dirs:
               if os.path.isfile(d):
-                  files = [d]
+                  files_to_check.append(d)
               else:
-                  files = [os.path.join(root, f) for root, _, fs in os.walk(d) if os.path.isdir(root) for f in fs if f.endswith((".h", ".cpp"))]
-              for f in files:
-                  with open(f, "r", encoding="utf-8") as file:
-                      for i, line in enumerate(file, 1):
-                          if len(line.rstrip("\r\n")) > 150:
-                              long_lines.append(f"{f}:{i} ({len(line.rstrip())} chars): {line.strip()[:60]}...")
+                  for root, _, fs in os.walk(d):
+                      for f in fs:
+                          if f.endswith((".h", ".cpp")):
+                              files_to_check.append(os.path.join(root, f))
+
+          # 1. Line length <= 150
+          long_lines = []
+          for f in files_to_check:
+              with open(f, "r", encoding="utf-8") as file:
+                  for i, line in enumerate(file, 1):
+                      if len(line.rstrip("\r\n")) > 150:
+                          long_lines.append(f"{f}:{i} ({len(line.rstrip())} chars): {line.strip()[:60]}...")
           if long_lines:
-              print("\n".join(long_lines))
+              print("Violations: lines > 150 chars:\n" + "\n".join(long_lines))
               sys.exit(1)
-          print("Line length check passed successfully: zero lines > 150 characters in bot layer!")
+
+          # 2. Function length <= 20 lines
+          def find_functions(file_path):
+              with open(file_path, "r", encoding="utf-8") as f:
+                  lines = f.readlines()
+              results = []
+              i = 0
+              while i < len(lines):
+                  line = lines[i]
+                  stripped = line.strip()
+                  if stripped.startswith(("#", "//", "/*", "*")):
+                      i += 1
+                      continue
+                  if "(" in line and not line.strip().startswith(("for ", "while ", "if ", "switch ")):
+                      brace_idx = -1
+                      for j in range(i, min(len(lines), i + 8)):
+                          if "{" in lines[j]:
+                              brace_idx = j
+                              break
+                          if ";" in lines[j] and "{" not in lines[j]:
+                              break
+                      if brace_idx != -1:
+                          chunk = "".join(lines[i:brace_idx+1])
+                          if not re.search(r"\b(class|struct|enum|union|namespace)\b", chunk):
+                              start_line = i + 1
+                              depth = 0
+                              end_line = -1
+                              for k in range(brace_idx, len(lines)):
+                                  depth += lines[k].count("{") - lines[k].count("}")
+                                  if depth == 0:
+                                      end_line = k + 1
+                                      break
+                              if end_line != -1:
+                                  length = end_line - start_line + 1
+                                  results.append((start_line, end_line, length, lines[i].strip()))
+                                  i = end_line
+                                  continue
+                  i += 1
+              return results
+
+          long_funcs = []
+          for f in files_to_check:
+              for s, e, l, sig in find_functions(f):
+                  if l > 20:
+                      long_funcs.append(f"{f}:{s}-{e} ({l} lines): {sig}")
+          if long_funcs:
+              print("Violations: methods > 20 lines:\n" + "\n".join(long_funcs))
+              sys.exit(1)
+
+          print("Checklist verification passed: 0 lines > 150 chars, 0 methods > 20 lines!")
           '
 
       - name: Static Analysis (cppcheck)
         run: |
           cppcheck --enable=warning,performance,portability \
                    --inline-suppr \
+                   --suppress=missingInclude \
                    --suppress=missingIncludeSystem \
                    --suppress=unusedFunction \
-                   --error-exitcode=0 \
+                   --suppress=unmatchedSuppression \
+                   --error-exitcode=1 \
                    --std=c++20 \
                    -I include \
                    src/bot/ src/main.cpp
 
       - name: Configure CMake with vcpkg
         run: |
+          TOOLCHAIN_ARG=""
+          if [ -n "$VCPKG_INSTALLATION_ROOT" ] && [ -f "$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" ]; then
+            TOOLCHAIN_ARG="-DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          fi
           cmake -B build -S . \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+            $TOOLCHAIN_ARG
 
       - name: Build Targets
         run: |

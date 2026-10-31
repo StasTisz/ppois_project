@@ -69,28 +69,26 @@ struct BotConfig {
     /**
      * @brief Находит существующие пути к файлам данных при запуске из вложенных папок сборки (CLion / VS).
      */
-    void resolveDataPaths() {
+    bool tryResolveWithPrefix(const std::string& prefix) {
         namespace fs = std::filesystem;
-        if (fs::exists(seedJsonPath)) {
+        for (const auto& candidate : {prefix + seedJsonPath, prefix + "data/initial_movies.json"}) {
+            if (fs::exists(candidate)) {
+                seedJsonPath = candidate;
+                if (dbPath == "data/movies.db") {
+                    dbPath = prefix + dbPath;
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void resolveDataPaths() {
+        if (std::filesystem::exists(seedJsonPath)) {
             return;
         }
-
-        const std::vector<std::string> prefixes = {"../", "../../", "../../../"};
-        for (const auto& prefix : prefixes) {
-            std::string candidateSeed = prefix + seedJsonPath;
-            if (fs::exists(candidateSeed)) {
-                seedJsonPath = candidateSeed;
-                if (dbPath == "data/movies.db") {
-                    dbPath = prefix + dbPath;
-                }
-                return;
-            }
-            std::string fallbackSeed = prefix + "data/initial_movies.json";
-            if (fs::exists(fallbackSeed)) {
-                seedJsonPath = fallbackSeed;
-                if (dbPath == "data/movies.db") {
-                    dbPath = prefix + dbPath;
-                }
+        for (const auto& prefix : {"../", "../../", "../../../"}) {
+            if (tryResolveWithPrefix(prefix)) {
                 return;
             }
         }

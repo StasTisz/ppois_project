@@ -87,8 +87,8 @@ InlineKeyboardRow KeyboardFactory::createRatingRow(int from, int to) {
 
 InlineKeyboard KeyboardFactory::createRatingKeyboard() {
     InlineKeyboard kb;
-    kb.rows.push_back(createRatingRow(1, 5));
-    kb.rows.push_back(createRatingRow(6, 10));
+    kb.rows.push_back(createRatingRow(kMinRating, kRatingsPerRow));
+    kb.rows.push_back(createRatingRow(static_cast<int>(kRatingsPerRow) + 1, kMaxRating));
     kb.rows.push_back({{"🔙 Отмена", "rate:cancel", ""}});
     return kb;
 }

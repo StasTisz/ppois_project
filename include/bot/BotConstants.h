@@ -40,6 +40,9 @@ inline constexpr size_t kDefaultThreadPoolSize = 4;
 /// Таймаут long-polling запросов к серверам Telegram по умолчанию (в секундах).
 inline constexpr int kDefaultLongPollTimeoutSeconds = 10;
 
+/// Лимит обновлений за один long-polling запрос к Telegram API.
+inline constexpr int32_t kDefaultLongPollLimit = 100;
+
 /// Количество кнопок жанров в одном ряду inline-клавиатуры.
 inline constexpr size_t kGenresPerRow = 2;
 
