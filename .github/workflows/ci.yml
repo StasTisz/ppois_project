@@ -69,6 +69,7 @@ jobs:
           if [ -n "$VCPKG_ROOT_DIR" ] && [ -d "$VCPKG_ROOT_DIR" ]; then
             git config --global --add safe.directory "$VCPKG_ROOT_DIR" 2>/dev/null || true
             VCPKG_COMMIT=$(git -C "$VCPKG_ROOT_DIR" rev-parse HEAD 2>/dev/null || echo "")
+            echo "::notice title=BaselineDetected::VCPKG_ROOT_DIR=$VCPKG_ROOT_DIR, VCPKG_COMMIT=$VCPKG_COMMIT"
             if [ -z "$VCPKG_COMMIT" ]; then
               VCPKG_COMMIT="1460b31b08c42cc2e9ac2c79f45ec8707e2675e2"
             fi
@@ -169,14 +170,24 @@ jobs:
 
       - name: Configure CMake with vcpkg
         run: |
+          cat vcpkg.json
           TOOLCHAIN_ARG=""
           if [ -n "$VCPKG_INSTALLATION_ROOT" ] && [ -f "$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" ]; then
             TOOLCHAIN_ARG="-DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
           fi
+          echo "Using TOOLCHAIN_ARG: $TOOLCHAIN_ARG"
           cmake -B build -S . \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            $TOOLCHAIN_ARG
+            $TOOLCHAIN_ARG 2>&1 | tee cmake_output.log || {
+              ERR=$(tail -n 25 cmake_output.log | tr '\r\n' '  ' | tr '"' "'")
+              echo "::error title=CMakeError::$ERR"
+              if [ -f "build/vcpkg-manifest-install.log" ]; then
+                VCPKG_ERR=$(tail -n 25 build/vcpkg-manifest-install.log | tr '\r\n' '  ' | tr '"' "'")
+                echo "::error title=VcpkgManifestError::$VCPKG_ERR"
+              fi
+              exit 1
+            }
 
       - name: Build Targets
         run: |
