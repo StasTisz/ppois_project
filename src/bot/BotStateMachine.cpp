@@ -33,6 +33,9 @@ BotStateMachine::BotStateMachine(
       recService_(std::move(recService)),
       userRepo_(std::move(userRepo)),
       commandDispatcher_(std::make_unique<CommandDispatcher>(*this, messenger_)) {
+    if (recService_) {
+        metricsCollector_ = recService_->getMetricsCollector();
+    }
     registerDefaultStates();
     initFallbackMovies();
 }
@@ -95,6 +98,9 @@ void BotStateMachine::setRecommendationService(
     std::shared_ptr<repository::IUserRepository> userRepo) {
     recService_ = std::move(recService);
     userRepo_ = std::move(userRepo);
+    if (recService_ && !metricsCollector_) {
+        metricsCollector_ = recService_->getMetricsCollector();
+    }
 }
 
 void BotStateMachine::registerState(std::shared_ptr<IDialogState> state) {
@@ -348,6 +354,18 @@ std::string BotStateMachine::getActiveStrategyName(int64_t userId) const {
         return recService_->resolveStrategyName(userId);
     }
     return "";
+}
+
+std::string BotStateMachine::getMetricsReport() const {
+    std::shared_ptr<analytics::MetricsCollector> collector;
+    {
+        std::lock_guard<std::mutex> lock(globalConfigMutex_);
+        collector = metricsCollector_;
+    }
+    if (collector) {
+        return collector->formatReport();
+    }
+    return "📊 Метрики пока не собраны (коллектор не инициализирован).";
 }
 
 std::string BotStateMachine::buildRecommendationExplanation(int64_t userId, const core::Movie& movie) const {

@@ -56,6 +56,10 @@ bool CommandDispatcher::dispatch(const IncomingMessage& msg) {
         handleHistory(session);
         return true;
     }
+    if (cmd == "/stats") {
+        handleStats(session);
+        return true;
+    }
     if (cmd == "/help") {
         handleHelp(session);
         return true;
@@ -127,6 +131,23 @@ void CommandDispatcher::handleHistory(const UserSession& session) {
         KeyboardFactory::createMainMenuKeyboard());
 }
 
+void CommandDispatcher::handleStats(const UserSession& session) {
+    if (!messenger_) {
+        return;
+    }
+
+    std::string report = context_.getMetricsReport();
+    if (report.empty()) {
+        report = "📊 Метрики пока не собраны (коллектор не инициализирован).";
+    }
+
+    report += "\n\nИспользуйте меню ниже для дальнейших действий:";
+    messenger_->sendMessageWithKeyboard(
+        session.chatId,
+        report,
+        KeyboardFactory::createMainMenuKeyboard());
+}
+
 void CommandDispatcher::handleHelp(const UserSession& session) {
     if (!messenger_) {
         return;
@@ -140,6 +161,7 @@ void CommandDispatcher::handleHelp(const UserSession& session) {
         "• /genres — Настройка и смена списка любимых жанров\n"
         "• /history — Просмотр истории оцененных фильмов и активного алгоритма\n"
         "• /similar — Поиск похожих фильмов во время просмотра\n"
+        "• /stats — Продуктовые метрики рекомендаций (CTR, DAU, время ответа)\n"
         "• /help — Справка по всем возможностям бота\n\n"
         "🎬 Кнопки под карточкой фильма:\n"
         "• 👍 Понравился — выставляет 10/10 и переключает на Content-Based подбор\n"

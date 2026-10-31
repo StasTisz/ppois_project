@@ -390,6 +390,7 @@ void TelegramBotApp::run() {
         addCmd("genres", "Настройка списка любимых жанров");
         addCmd("history", "История оценок и активный алгоритм");
         addCmd("similar", "Поиск похожих фильмов во время просмотра");
+        addCmd("stats", "Аналитика и метрики работы бота");
         addCmd("help", "Справка по возможностям бота");
 
         bot_.getApi().setMyCommands(commands);

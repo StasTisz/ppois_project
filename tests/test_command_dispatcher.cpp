@@ -184,3 +184,27 @@ TEST(CommandDispatcherTest, HelpCommandOutputsCommandsList) {
     EXPECT_NE(lastMsg.keyboard.findByCallback("menu:recommend"), nullptr);
     EXPECT_NE(lastMsg.keyboard.findByCallback("menu:genres"), nullptr);
 }
+
+/**
+ * @test Проверяет, что команда /stats выводит сводку метрик и прикрепляет главное меню.
+ */
+TEST(CommandDispatcherTest, StatsCommandOutputsMetricsReport) {
+    auto spy = std::make_shared<DispatcherSpyMessenger>();
+    bot::BotStateMachine fsm(spy);
+
+    auto collector = std::make_shared<analytics::MetricsCollector>();
+    collector->recordImpression(1001, 1);
+    collector->recordLike(1001, 1);
+    fsm.setMetricsCollector(collector);
+
+    fsm.processMessage({12345, 1001, "alice", "/stats"});
+    ASSERT_FALSE(spy->entries.empty());
+
+    const auto& lastMsg = spy->entries.back();
+    EXPECT_NE(lastMsg.text.find("Метрики рекомендательной системы"), std::string::npos);
+    EXPECT_NE(lastMsg.text.find("CTR"), std::string::npos);
+    EXPECT_NE(lastMsg.text.find("DAU"), std::string::npos);
+    EXPECT_FALSE(lastMsg.keyboard.empty());
+    EXPECT_NE(lastMsg.keyboard.findByCallback("menu:recommend"), nullptr);
+}
+

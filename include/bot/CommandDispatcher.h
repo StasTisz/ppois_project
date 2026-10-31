@@ -53,6 +53,7 @@ private:
     void handleRecommend(UserSession& session);
     void handleGenres(UserSession& session);
     void handleHistory(const UserSession& session);
+    void handleStats(const UserSession& session);
     void handleHelp(const UserSession& session);
 
     IDialogStateContext& context_;

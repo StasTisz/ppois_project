@@ -153,6 +153,14 @@ public:
         (void)movieId;
         (void)isLike;
     }
+
+    /**
+     * @brief Форматирует сводный текстовый отчет продуктовых метрик рекомендаций.
+     * @return Строка отчета (CTR, DAU, задержка) либо пустая строка.
+     */
+    [[nodiscard]] virtual std::string getMetricsReport() const {
+        return "";
+    }
 };
 
 /**

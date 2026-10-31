@@ -199,6 +199,7 @@ public:
             else collector->recordDislike(userId, movieId);
         }
     }
+    [[nodiscard]] std::string getMetricsReport() const override;
 
     /**
      * @brief Обрабатывает входящее текстовое сообщение.
