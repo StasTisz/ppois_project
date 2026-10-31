@@ -34,6 +34,9 @@ lib/
 # Environment files
 .env
 
+# Documentation and temporary audits
+docs/
+
 # Repomix output and text dumps (excluding CMakeLists.txt)
 *.txt
 !CMakeLists.txt
