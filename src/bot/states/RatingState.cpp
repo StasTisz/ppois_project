@@ -17,15 +17,19 @@ BotState RatingState::getStateType() const {
 
 void RatingState::onEnter(IDialogStateContext& ctx, UserSession& session) {
     auto messenger = ctx.getMessenger();
-    if (!messenger) {
-        return;
-    }
+    if (!messenger) return;
     std::string movieTitle = session.hasCurrentMovie() ? session.getCurrentMovieTitle() : "текущий фильм";
-    messenger->sendMessageWithKeyboard(
-        session.chatId,
-        "⭐ Оценка фильма «" + movieTitle + "»:\n"
-        "Выберите оценку от 1 до 10 на клавиатуре ниже или отправьте число сообщением (либо /cancel):",
-        KeyboardFactory::createRatingKeyboard());
+    std::string prompt;
+    if (session.hasCurrentMovie() && session.hasRating(*session.getCurrentMovieId())) {
+        int oldScore = *session.getRating(*session.getCurrentMovieId());
+        prompt = "✏️ Изменение оценки фильма «" + movieTitle + "»\n"
+                 "Текущая оценка: " + std::to_string(oldScore) + "/10.\n"
+                 "Выберите новую оценку от 1 до 10 на клавиатуре ниже (или /cancel):";
+    } else {
+        prompt = "⭐ Оценка фильма «" + movieTitle + "»:\n"
+                 "Выберите оценку от 1 до 10 на клавиатуре ниже или отправьте число сообщением (либо /cancel):";
+    }
+    messenger->sendMessageWithKeyboard(session.chatId, prompt, KeyboardFactory::createRatingKeyboard());
 }
 
 std::optional<int> RatingState::parseRatingText(const std::string& text) {
@@ -40,14 +44,17 @@ std::optional<int> RatingState::parseRatingText(const std::string& text) {
 }
 
 void RatingState::applyRating(IDialogStateContext& ctx, UserSession& session, int score) {
+    std::string movieTitle = "фильм";
     if (session.hasCurrentMovie()) {
         int64_t movieId = *session.getCurrentMovieId();
+        movieTitle = session.getCurrentMovieTitle();
         session.recordRating(movieId, score);
         ctx.recordMovieRating(session.userId, movieId, score);
         ctx.recordReaction(session.userId, movieId, score >= kPositiveRatingThreshold);
     }
     if (auto messenger = ctx.getMessenger()) {
-        messenger->sendMessage(session.chatId, "✅ Оценка " + std::to_string(score) + "/10 успешно сохранена!");
+        messenger->sendMessage(session.chatId,
+            "✅ Оценка фильма «" + movieTitle + "» сохранена: " + std::to_string(score) + "/10!");
     }
     ctx.transitionTo(session.userId, BotState::BrowsingRecommendations);
 }

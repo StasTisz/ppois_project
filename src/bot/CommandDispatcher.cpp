@@ -79,31 +79,61 @@ void CommandDispatcher::handleGenres(UserSession& session) {
     context_.transitionTo(session.userId, BotState::SelectingGenres);
 }
 
-static std::string formatRatingEntries(const UserSession& session, IDialogStateContext& ctx) {
-    std::ostringstream oss;
-    oss << "📜 Ваша история оценок:\n";
-    for (const auto& [movieId, score] : session.getMovieRatings()) {
-        auto movieOpt = ctx.getMovieById(movieId);
-        std::string title = movieOpt ? movieOpt->title : ("Фильм #" + std::to_string(movieId));
-        oss << "• " << title << " — " << score << "/10\n";
-    }
-    return oss.str();
+static std::vector<std::pair<int64_t, int>> getSortedRatings(const UserSession& session) {
+    std::vector<std::pair<int64_t, int>> ratings(
+        session.getMovieRatings().begin(), session.getMovieRatings().end());
+    std::sort(ratings.begin(), ratings.end(), [](const auto& a, const auto& b) {
+        return a.first < b.first;
+    });
+    return ratings;
 }
 
-std::string CommandDispatcher::formatHistoryText(const UserSession& session, const std::string& strategy) const {
+std::vector<std::pair<int64_t, std::string>> CommandDispatcher::buildHistoryButtonItems(
+    const UserSession& session, const IDialogStateContext& ctx) {
+    auto ratings = getSortedRatings(session);
+    std::vector<std::pair<int64_t, std::string>> items;
+    items.reserve(ratings.size());
+    for (size_t i = 0; i < ratings.size(); ++i) {
+        const auto& [movieId, score] = ratings[i];
+        auto movieOpt = ctx.getMovieById(movieId);
+        std::string title = movieOpt ? movieOpt->title : ("Фильм #" + std::to_string(movieId));
+        std::string label = "✏️ " + std::to_string(i + 1) + ". " + title + " (" + std::to_string(score) + "/10)";
+        items.emplace_back(movieId, std::move(label));
+    }
+    return items;
+}
+
+std::string CommandDispatcher::formatHistoryText(
+    const UserSession& session, const std::string& strategy, const IDialogStateContext& ctx) {
     if (!session.hasRatings()) {
         std::string text = "Ваша история просмотров и оценок пока пуста.";
         return strategy.empty() ? text : (text + "\n🎯 Активный режим рекомендаций: " + strategy);
     }
-    std::string text = formatRatingEntries(session, context_);
-    if (!strategy.empty()) text += "\n🎯 Активный режим рекомендаций: " + strategy + "\n";
-    return text + "\nИспользуйте меню ниже для дальнейших действий:";
+    auto ratings = getSortedRatings(session);
+    std::ostringstream oss;
+    oss << "📜 Ваша история оценок:\n\n";
+    for (size_t i = 0; i < ratings.size(); ++i) {
+        const auto& [movieId, score] = ratings[i];
+        auto movieOpt = ctx.getMovieById(movieId);
+        std::string title = movieOpt ? movieOpt->title : ("Фильм #" + std::to_string(movieId));
+        oss << (i + 1) << ". " << title << " — " << score << "/10\n";
+    }
+    if (!strategy.empty()) oss << "\n🎯 Активный режим рекомендаций: " << strategy << "\n";
+    oss << "\nНажмите кнопку ниже, чтобы изменить оценку фильма:";
+    return oss.str();
 }
 
 void CommandDispatcher::handleHistory(const UserSession& session) {
     if (!messenger_) return;
-    std::string text = formatHistoryText(session, context_.getActiveStrategyName(session.userId));
-    messenger_->sendMessageWithKeyboard(session.chatId, text, KeyboardFactory::createMainMenuKeyboard());
+    std::string strategy = context_.getActiveStrategyName(session.userId);
+    std::string text = formatHistoryText(session, strategy, context_);
+    if (!session.hasRatings()) {
+        messenger_->sendMessageWithKeyboard(session.chatId, text, KeyboardFactory::createMainMenuKeyboard());
+        return;
+    }
+    auto buttonItems = buildHistoryButtonItems(session, context_);
+    messenger_->sendMessageWithKeyboard(
+        session.chatId, text, KeyboardFactory::createHistoryKeyboard(buttonItems));
 }
 
 static std::string formatSingleBookmark(size_t index, const core::Movie& movie) {

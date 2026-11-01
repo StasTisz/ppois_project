@@ -64,6 +64,13 @@ public:
      */
     static InlineKeyboard createSearchResultsKeyboard(const std::vector<core::Movie>& movies);
 
+    /**
+     * @brief Создает клавиатуру истории оценок с кнопками изменения оценок для каждого фильма.
+     * @param items Список пар (movieId, текстовая подпись кнопки).
+     * @return Объект InlineKeyboard.
+     */
+    static InlineKeyboard createHistoryKeyboard(const std::vector<std::pair<int64_t, std::string>>& items);
+
 private:
     static InlineButton createGenreButton(
         const std::string& genre, const std::vector<std::string>& selectedGenres);

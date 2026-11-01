@@ -229,7 +229,9 @@ public:
     void attachToRouter(BotEventRouter& router);
 
 private:
+    bool dispatchGlobalCallback(UserSession& session, const std::string& data);
     void handleSearchView(UserSession& session, const std::string& data);
+    void handleHistoryEdit(UserSession& session, const std::string& data);
     /**
      * @brief Инициализирует стандартные состояния автомата.
      */

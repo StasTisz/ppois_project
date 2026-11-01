@@ -434,4 +434,71 @@ TEST(CommandDispatcherTest, SearchCallbackRendersTargetMovieCard) {
     EXPECT_EQ(session.state, bot::BotState::BrowsingRecommendations);
 }
 
+/**
+ * @test Проверяет генерацию кнопок hist:edit в клавиатуре заполненной истории.
+ */
+TEST(CommandDispatcherTest, HistoryKeyboardContainsEditButtons) {
+    auto spy = std::make_shared<DispatcherSpyMessenger>();
+    bot::BotStateMachine fsm(spy);
+
+    auto& session = fsm.getSession(1001, 12345, "alice");
+    session.recordRating(1, 7);
+    session.recordRating(3, 9);
+
+    fsm.processMessage({12345, 1001, "alice", "/history"});
+    ASSERT_FALSE(spy->entries.empty());
+
+    const auto& lastMsg = spy->entries.back();
+    EXPECT_NE(lastMsg.keyboard.findByCallback("hist:edit:1"), nullptr);
+    EXPECT_NE(lastMsg.keyboard.findByCallback("hist:edit:3"), nullptr);
+    EXPECT_NE(lastMsg.keyboard.findByCallback("menu:recommend"), nullptr);
+}
+
+/**
+ * @test Проверяет переход в состояние RatingMovie с отображением старой оценки при клике hist:edit.
+ */
+TEST(CommandDispatcherTest, HistoryEditCallbackOpensRatingPromptWithCurrentScore) {
+    auto spy = std::make_shared<DispatcherSpyMessenger>();
+    bot::BotStateMachine fsm(spy);
+
+    auto& session = fsm.getSession(1001, 12345, "alice");
+    session.recordRating(1, 8);
+
+    fsm.processCallback({"cb_hist", 12345, 1001, 1, "hist:edit:1"});
+    EXPECT_EQ(session.state, bot::BotState::RatingMovie);
+    ASSERT_TRUE(session.hasCurrentMovie());
+    EXPECT_EQ(session.getCurrentMovieId().value_or(0), 1);
+
+    ASSERT_FALSE(spy->entries.empty());
+    const auto& lastMsg = spy->entries.back();
+    EXPECT_NE(lastMsg.text.find("Текущая оценка: 8/10"), std::string::npos);
+}
+
+/**
+ * @test Проверяет успешное изменение оценки на новую через диалог переоценки.
+ */
+TEST(CommandDispatcherTest, HistoryEditAppliesNewRatingSuccessfully) {
+    auto spy = std::make_shared<DispatcherSpyMessenger>();
+    bot::BotStateMachine fsm(spy);
+
+    auto& session = fsm.getSession(1001, 12345, "alice");
+    session.recordRating(1, 6);
+
+    fsm.processCallback({"cb_hist", 12345, 1001, 1, "hist:edit:1"});
+    fsm.processCallback({"cb_rate", 12345, 1001, 2, "rate:10"});
+
+    EXPECT_EQ(session.getRating(1).value_or(0), 10);
+    EXPECT_EQ(session.state, bot::BotState::BrowsingRecommendations);
+
+    ASSERT_FALSE(spy->entries.empty());
+    bool foundConfirmation = false;
+    for (const auto& entry : spy->entries) {
+        if (entry.text.find("10/10") != std::string::npos) {
+            foundConfirmation = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(foundConfirmation);
+}
+
 

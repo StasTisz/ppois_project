@@ -426,6 +426,29 @@ void BotStateMachine::handleSearchView(UserSession& session, const std::string& 
     MovieCardFormatter::sendMovieCard(*messenger_, session.chatId, *movieOpt, kb, "🔍 Найденный фильм:");
 }
 
+void BotStateMachine::handleHistoryEdit(UserSession& session, const std::string& data) {
+    int64_t movieId = 0;
+    try {
+        movieId = std::stoll(data.substr(std::string("hist:edit:").size()));
+    } catch (...) { return; }
+    auto movieOpt = getMovieById(movieId);
+    if (!movieOpt) return;
+    session.setCurrentMovie(*movieOpt);
+    transitionTo(session.userId, BotState::RatingMovie);
+}
+
+bool BotStateMachine::dispatchGlobalCallback(UserSession& session, const std::string& data) {
+    if (data.rfind("search:view:", 0) == 0) {
+        handleSearchView(session, data);
+        return true;
+    }
+    if (data.rfind("hist:edit:", 0) == 0) {
+        handleHistoryEdit(session, data);
+        return true;
+    }
+    return false;
+}
+
 void BotStateMachine::processCallback(const IncomingCallback& cb) {
     if (storageChatId_ != 0 && cb.chatId == storageChatId_) return;
 
@@ -433,10 +456,7 @@ void BotStateMachine::processCallback(const IncomingCallback& cb) {
     std::lock_guard<std::recursive_mutex> lock(*userMutex);
 
     auto& session = getSession(cb.userId, cb.chatId);
-    if (cb.data.rfind("search:view:", 0) == 0) {
-        handleSearchView(session, cb.data);
-        return;
-    }
+    if (dispatchGlobalCallback(session, cb.data)) return;
 
     auto it = states_.find(session.state);
     if (it != states_.end() && it->second) {

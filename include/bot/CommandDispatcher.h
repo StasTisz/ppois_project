@@ -66,6 +66,25 @@ public:
     [[nodiscard]] static std::string formatSearchResultsText(
         const std::string& query, const std::vector<core::Movie>& movies);
 
+    /**
+     * @brief Форматирует текст истории оценок пользователя.
+     * @param session Сессия пользователя.
+     * @param strategy Название текущей активной стратегии рекомендаций.
+     * @param ctx Контекст диалога.
+     * @return Отформатированная строка истории оценок.
+     */
+    [[nodiscard]] static std::string formatHistoryText(
+        const UserSession& session, const std::string& strategy, const IDialogStateContext& ctx);
+
+    /**
+     * @brief Строит список элементов для inline-клавиатуры истории оценок.
+     * @param session Сессия пользователя.
+     * @param ctx Контекст диалога.
+     * @return Вектор пар (movieId, подпись кнопки).
+     */
+    [[nodiscard]] static std::vector<std::pair<int64_t, std::string>> buildHistoryButtonItems(
+        const UserSession& session, const IDialogStateContext& ctx);
+
 private:
     void handleStart(UserSession& session);
     void handleRecommend(UserSession& session);
@@ -76,7 +95,6 @@ private:
     void handleSearch(UserSession& session, const std::string& query);
     void handleHelp(const UserSession& session);
 
-    [[nodiscard]] std::string formatHistoryText(const UserSession& session, const std::string& strategy) const;
     [[nodiscard]] static std::string buildHelpText();
 
     IDialogStateContext& context_;

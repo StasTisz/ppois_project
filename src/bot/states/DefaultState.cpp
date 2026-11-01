@@ -12,21 +12,6 @@
 
 namespace bot {
 
-namespace {
-
-std::string formatHistoryRatings(IDialogStateContext& ctx, const UserSession& session) {
-    std::ostringstream oss;
-    oss << "📜 Ваша история оценок:\n";
-    for (const auto& [movieId, score] : session.getMovieRatings()) {
-        auto movieOpt = ctx.getMovieById(movieId);
-        std::string title = movieOpt ? movieOpt->title : ("Фильм #" + std::to_string(movieId));
-        oss << "• " << title << " — " << score << "/10\n";
-    }
-    return oss.str();
-}
-
-} // namespace
-
 BotState DefaultState::getStateType() const {
     return BotState::Idle;
 }
@@ -94,22 +79,21 @@ void DefaultState::handleMessage(
 
 std::string DefaultState::formatHistoryText(IDialogStateContext& ctx, const UserSession& session) const {
     std::string strategy = ctx.getActiveStrategyName(session.userId);
-    if (!session.hasRatings()) {
-        std::string text = "Ваша история просмотров и оценок пока пуста.";
-        return strategy.empty() ? text : (text + "\n🎯 Активный режим рекомендаций: " + strategy);
-    }
-    std::string text = formatHistoryRatings(ctx, session);
-    if (!strategy.empty()) {
-        text += "\n🎯 Активный режим рекомендаций: " + strategy + "\n";
-    }
-    return text + "\nИспользуйте меню ниже для дальнейших действий:";
+    return CommandDispatcher::formatHistoryText(session, strategy, ctx);
 }
 
 void DefaultState::handleHistoryCallback(IDialogStateContext& ctx, const UserSession& session) {
     auto messenger = ctx.getMessenger();
     if (!messenger) return;
-    std::string text = formatHistoryText(ctx, session);
-    messenger->sendMessageWithKeyboard(session.chatId, text, KeyboardFactory::createMainMenuKeyboard());
+    std::string strategy = ctx.getActiveStrategyName(session.userId);
+    std::string text = CommandDispatcher::formatHistoryText(session, strategy, ctx);
+    if (!session.hasRatings()) {
+        messenger->sendMessageWithKeyboard(session.chatId, text, KeyboardFactory::createMainMenuKeyboard());
+        return;
+    }
+    auto buttonItems = CommandDispatcher::buildHistoryButtonItems(session, ctx);
+    messenger->sendMessageWithKeyboard(
+        session.chatId, text, KeyboardFactory::createHistoryKeyboard(buttonItems));
 }
 
 void DefaultState::handleBookmarksCallback(IDialogStateContext& ctx, const UserSession& session) {

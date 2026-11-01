@@ -106,4 +106,18 @@ InlineKeyboard KeyboardFactory::createSearchResultsKeyboard(const std::vector<co
     return kb;
 }
 
+InlineKeyboard KeyboardFactory::createHistoryKeyboard(
+    const std::vector<std::pair<int64_t, std::string>>& items) {
+    InlineKeyboard kb;
+    for (const auto& [movieId, label] : items) {
+        std::string text = label;
+        if (text.size() > 40) {
+            text = text.substr(0, 37) + "...";
+        }
+        kb.rows.push_back({{text, "hist:edit:" + std::to_string(movieId), ""}});
+    }
+    kb.rows.push_back({{"🎬 Рекомендации", "menu:recommend", ""}, {"🏠 Главное меню", "menu:main", ""}});
+    return kb;
+}
+
 } // namespace bot
