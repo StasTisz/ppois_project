@@ -1,12 +1,16 @@
 #include "bot/BotStateMachine.h"
 #include "bot/BotConstants.h"
 #include "bot/CommandDispatcher.h"
+#include "bot/KeyboardFactory.h"
+#include "bot/MovieCardFormatter.h"
 #include "bot/states/BrowsingRecommendationsState.h"
 #include "bot/states/DefaultState.h"
 #include "bot/states/GenreSelectionState.h"
 #include "bot/states/RatingState.h"
 #include "recommendation/ContentBasedRecommendationStrategy.h"
 
+#include <algorithm>
+#include <cctype>
 #include <ctime>
 #include <iostream>
 #include <utility>
@@ -268,6 +272,34 @@ std::vector<core::Movie> BotStateMachine::fetchSimilarMovies(int64_t movieId, si
     return {};
 }
 
+static std::string toLowerAscii(const std::string& str) {
+    std::string res = str;
+    std::transform(res.begin(), res.end(), res.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return res;
+}
+
+static std::vector<core::Movie> searchInFallback(
+    const std::vector<core::Movie>& fallback, const std::string& query, size_t limit) {
+    std::vector<core::Movie> results;
+    if (query.empty()) return results;
+    std::string lq = toLowerAscii(query);
+    for (const auto& m : fallback) {
+        if (toLowerAscii(m.title).find(lq) != std::string::npos) {
+            results.push_back(m);
+            if (results.size() >= limit) break;
+        }
+    }
+    return results;
+}
+
+std::vector<core::Movie> BotStateMachine::searchMovies(const std::string& query, size_t limit) {
+    if (recService_) {
+        return recService_->searchMovies(query, limit);
+    }
+    return searchInFallback(fallbackMovies_, query, limit);
+}
+
 std::string BotStateMachine::getActiveStrategyName(int64_t userId) const {
     if (recService_) {
         return recService_->resolveStrategyName(userId);
@@ -379,6 +411,21 @@ void BotStateMachine::processMessage(const IncomingMessage& msg) {
     }
 }
 
+void BotStateMachine::handleSearchView(UserSession& session, const std::string& data) {
+    if (!messenger_) return;
+    int64_t movieId = 0;
+    try {
+        movieId = std::stoll(data.substr(std::string("search:view:").size()));
+    } catch (...) { return; }
+    auto movieOpt = getMovieById(movieId);
+    if (!movieOpt) return;
+    session.setCurrentMovie(*movieOpt);
+    session.state = BotState::BrowsingRecommendations;
+    bool isBookmarked = session.isBookmarked(movieOpt->id);
+    auto kb = KeyboardFactory::createMovieReactionKeyboard(movieOpt->id, movieOpt->trailerUrl, isBookmarked);
+    MovieCardFormatter::sendMovieCard(*messenger_, session.chatId, *movieOpt, kb, "🔍 Найденный фильм:");
+}
+
 void BotStateMachine::processCallback(const IncomingCallback& cb) {
     if (storageChatId_ != 0 && cb.chatId == storageChatId_) return;
 
@@ -386,6 +433,11 @@ void BotStateMachine::processCallback(const IncomingCallback& cb) {
     std::lock_guard<std::recursive_mutex> lock(*userMutex);
 
     auto& session = getSession(cb.userId, cb.chatId);
+    if (cb.data.rfind("search:view:", 0) == 0) {
+        handleSearchView(session, cb.data);
+        return;
+    }
+
     auto it = states_.find(session.state);
     if (it != states_.end() && it->second) {
         it->second->handleCallback(*this, session, cb);

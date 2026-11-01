@@ -40,6 +40,7 @@ private:
     void handleRate(IDialogStateContext& ctx, UserSession& session, int64_t movieId);
     void handleBookmark(IDialogStateContext& ctx, UserSession& session, int64_t movieId);
     void handleSimilarCallback(IDialogStateContext& ctx, UserSession& session, int64_t movieId);
+    void handleSearchViewCallback(IDialogStateContext& ctx, UserSession& session, const std::string& data);
     void formatAndSendCurrentCard(IDialogStateContext& ctx, UserSession& session);
 
     [[nodiscard]] std::optional<core::Movie> resolveTargetMovie(

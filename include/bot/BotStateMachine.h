@@ -129,6 +129,14 @@ public:
     std::vector<core::Movie> fetchSimilarMovies(int64_t movieId, size_t count = 3) override;
 
     /**
+     * @brief Выполняет поиск фильмов по названию или ключевым словам.
+     * @param query Поисковый запрос.
+     * @param limit Максимальное количество результатов.
+     * @return Вектор найденных фильмов.
+     */
+    std::vector<core::Movie> searchMovies(const std::string& query, size_t limit = 5) override;
+
+    /**
      * @brief Возвращает название текущей стратегии рекомендаций.
      * @param userId Идентификатор пользователя Telegram.
      * @return Название стратегии.
@@ -221,6 +229,7 @@ public:
     void attachToRouter(BotEventRouter& router);
 
 private:
+    void handleSearchView(UserSession& session, const std::string& data);
     /**
      * @brief Инициализирует стандартные состояния автомата.
      */

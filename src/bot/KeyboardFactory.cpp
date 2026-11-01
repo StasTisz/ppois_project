@@ -92,4 +92,18 @@ InlineKeyboard KeyboardFactory::createRatingKeyboard() {
     return kb;
 }
 
+InlineKeyboard KeyboardFactory::createSearchResultsKeyboard(const std::vector<core::Movie>& movies) {
+    InlineKeyboard kb;
+    for (size_t i = 0; i < movies.size(); ++i) {
+        const auto& m = movies[i];
+        std::string label = "🎬 " + std::to_string(i + 1) + ". " + m.title;
+        if (label.size() > 40) {
+            label = label.substr(0, 37) + "...";
+        }
+        kb.rows.push_back({{label, "search:view:" + std::to_string(m.id), ""}});
+    }
+    kb.rows.push_back({{"🏠 Главное меню", "menu:main", ""}});
+    return kb;
+}
+
 } // namespace bot

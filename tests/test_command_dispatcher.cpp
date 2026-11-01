@@ -363,4 +363,75 @@ TEST(CommandDispatcherTest, WatchlistAliasOutputsSavedMovies) {
     EXPECT_NE(lastMsg.text.find("Побег из Шоушенка"), std::string::npos);
 }
 
+/**
+ * @test Проверяет корректное извлечение аргументов команды.
+ */
+TEST(CommandDispatcherTest, ExtractArgumentVariants) {
+    EXPECT_EQ(bot::CommandDispatcher::extractArgument(""), "");
+    EXPECT_EQ(bot::CommandDispatcher::extractArgument("/search"), "");
+    EXPECT_EQ(bot::CommandDispatcher::extractArgument("/search   "), "");
+    EXPECT_EQ(bot::CommandDispatcher::extractArgument("/search Matrix"), "Matrix");
+    EXPECT_EQ(bot::CommandDispatcher::extractArgument("/search   The Dark Knight   "), "The Dark Knight");
+}
+
+/**
+ * @test Проверяет вывод подсказки при вызове /search без параметров.
+ */
+TEST(CommandDispatcherTest, SearchWithoutQueryShowsUsagePrompt) {
+    auto spy = std::make_shared<DispatcherSpyMessenger>();
+    bot::BotStateMachine fsm(spy);
+
+    fsm.processMessage({12345, 1001, "alice", "/search"});
+    ASSERT_FALSE(spy->entries.empty());
+
+    const auto& lastMsg = spy->entries.back();
+    EXPECT_NE(lastMsg.text.find("/search <название>"), std::string::npos);
+}
+
+/**
+ * @test Проверяет успешный поиск фильмов по названию и генерацию кнопок выбора.
+ */
+TEST(CommandDispatcherTest, SearchWithMatchingQueryReturnsResultsAndButtons) {
+    auto spy = std::make_shared<DispatcherSpyMessenger>();
+    bot::BotStateMachine fsm(spy);
+
+    fsm.processMessage({12345, 1001, "alice", "/search Начало"});
+    ASSERT_FALSE(spy->entries.empty());
+
+    const auto& lastMsg = spy->entries.back();
+    EXPECT_NE(lastMsg.text.find("Начало (Inception)"), std::string::npos);
+    EXPECT_FALSE(lastMsg.keyboard.empty());
+    EXPECT_NE(lastMsg.keyboard.findByCallback("search:view:1"), nullptr);
+}
+
+/**
+ * @test Проверяет сообщение об отсутствии результатов при неизвестном поисковом запросе.
+ */
+TEST(CommandDispatcherTest, SearchWithNonExistentQueryReturnsEmptyNotice) {
+    auto spy = std::make_shared<DispatcherSpyMessenger>();
+    bot::BotStateMachine fsm(spy);
+
+    fsm.processMessage({12345, 1001, "alice", "/search НеизвестныйФильм12345"});
+    ASSERT_FALSE(spy->entries.empty());
+
+    const auto& lastMsg = spy->entries.back();
+    EXPECT_NE(lastMsg.text.find("ничего не найдено"), std::string::npos);
+}
+
+/**
+ * @test Проверяет переход к карточке фильма по нажатию кнопки search:view.
+ */
+TEST(CommandDispatcherTest, SearchCallbackRendersTargetMovieCard) {
+    auto spy = std::make_shared<DispatcherSpyMessenger>();
+    bot::BotStateMachine fsm(spy);
+
+    fsm.processMessage({12345, 1001, "alice", "/start"});
+    fsm.processCallback({"cb_search", 12345, 1001, 1, "search:view:1"});
+
+    auto& session = fsm.getSession(1001, 12345);
+    ASSERT_TRUE(session.hasCurrentMovie());
+    EXPECT_EQ(session.getCurrentMovieId().value_or(0), 1);
+    EXPECT_EQ(session.state, bot::BotState::BrowsingRecommendations);
+}
+
 

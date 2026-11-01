@@ -1,6 +1,7 @@
 #include "bot/states/DefaultState.h"
 #include "bot/CommandDispatcher.h"
 #include "bot/KeyboardFactory.h"
+#include "bot/MovieCardFormatter.h"
 
 #include <sstream>
 
@@ -35,6 +36,7 @@ void DefaultState::onEnter(IDialogStateContext& ctx, UserSession& session) {
         messenger->sendMessageWithKeyboard(session.chatId,
             "Главное меню:\n"
             "• /recommend — Получить рекомендации фильмов\n"
+            "• /search <название> — Поиск фильмов по названию\n"
             "• /genres — Настроить любимые жанры\n"
             "• /history — История оценок\n"
             "• /bookmarks — Список «Буду смотреть»\n"
@@ -60,6 +62,7 @@ void DefaultState::handleHelpCommand(IDialogStateContext& ctx, const UserSession
         messenger->sendMessageWithKeyboard(session.chatId,
             "Справка бота рекомендаций фильмов:\n"
             "/recommend — Начать подбор рекомендаций на основе ваших предпочтений\n"
+            "/search <название> — Найти фильм по названию\n"
             "/genres — Изменить список любимых жанров\n"
             "/history — История просмотренных и оцененных фильмов\n"
             "/bookmarks — Список фильмов «Буду смотреть»\n"
@@ -116,6 +119,23 @@ void DefaultState::handleBookmarksCallback(IDialogStateContext& ctx, const UserS
     messenger->sendMessageWithKeyboard(session.chatId, text, KeyboardFactory::createMainMenuKeyboard());
 }
 
+void DefaultState::handleSearchViewCallback(
+    IDialogStateContext& ctx, UserSession& session, const std::string& data) {
+    auto messenger = ctx.getMessenger();
+    if (!messenger) return;
+    int64_t movieId = 0;
+    try {
+        movieId = std::stoll(data.substr(std::string("search:view:").size()));
+    } catch (...) { return; }
+    auto movieOpt = ctx.getMovieById(movieId);
+    if (!movieOpt) return;
+    session.setCurrentMovie(*movieOpt);
+    session.state = BotState::BrowsingRecommendations;
+    bool isBookmarked = session.isBookmarked(movieOpt->id);
+    auto kb = KeyboardFactory::createMovieReactionKeyboard(movieOpt->id, movieOpt->trailerUrl, isBookmarked);
+    MovieCardFormatter::sendMovieCard(*messenger, session.chatId, *movieOpt, kb, "🔍 Найденный фильм:");
+}
+
 void DefaultState::handleCallback(
     IDialogStateContext& ctx, UserSession& session, const IncomingCallback& cb) {
     if (cb.data == "menu:genres") {
@@ -128,6 +148,10 @@ void DefaultState::handleCallback(
         handleBookmarksCallback(ctx, session);
     } else if (cb.data == "menu:help") {
         handleHelpCommand(ctx, session);
+    } else if (cb.data == "menu:main") {
+        onEnter(ctx, session);
+    } else if (cb.data.rfind("search:view:", 0) == 0) {
+        handleSearchViewCallback(ctx, session, cb.data);
     }
 }
 

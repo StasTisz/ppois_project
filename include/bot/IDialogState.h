@@ -104,6 +104,18 @@ public:
     }
 
     /**
+     * @brief Выполняет поиск фильмов по названию или ключевым словам.
+     * @param query Поисковый запрос.
+     * @param limit Максимальное количество результатов.
+     * @return Вектор найденных фильмов.
+     */
+    virtual std::vector<core::Movie> searchMovies(const std::string& query, size_t limit = 5) {
+        (void)query;
+        (void)limit;
+        return {};
+    }
+
+    /**
      * @brief Возвращает название текущей активной стратегии рекомендаций для пользователя.
      * @param userId Идентификатор пользователя Telegram.
      * @return Название стратегии либо пустая строка.

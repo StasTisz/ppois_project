@@ -28,6 +28,9 @@ inline constexpr int kPositiveRatingThreshold = 7;
 /// Лимит количества похожих фильмов для отображения по умолчанию.
 inline constexpr size_t kDefaultSimilarMoviesLimit = 3;
 
+/// Лимит количества фильмов, возвращаемых по поисковому запросу по умолчанию.
+inline constexpr size_t kDefaultSearchLimit = 5;
+
 /// Размер батча кандидатов рекомендаций, запрашиваемых у RecommendationService.
 inline constexpr size_t kRecommendationBatchSize = 20;
 

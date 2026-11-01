@@ -30,6 +30,7 @@ private:
     void handleHelpCommand(IDialogStateContext& ctx, const UserSession& session);
     void handleHistoryCallback(IDialogStateContext& ctx, const UserSession& session);
     void handleBookmarksCallback(IDialogStateContext& ctx, const UserSession& session);
+    void handleSearchViewCallback(IDialogStateContext& ctx, UserSession& session, const std::string& data);
     [[nodiscard]] std::string formatHistoryText(IDialogStateContext& ctx, const UserSession& session) const;
 };
 

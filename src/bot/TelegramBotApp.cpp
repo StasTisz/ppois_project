@@ -54,25 +54,25 @@ bool sendPhotoCall(
         }, mediaConfig, &lastError);
 }
 
+static TgBot::BotCommand::Ptr makeBotCmd(const std::string& cmd, const std::string& desc) {
+    auto c = std::make_shared<TgBot::BotCommand>();
+    c->command = cmd;
+    c->description = desc;
+    return c;
+}
+
 std::vector<TgBot::BotCommand::Ptr> buildBotCommands() {
-    std::vector<std::pair<std::string, std::string>> list = {
-        {"start", "Запуск и выбор любимых жанров"},
-        {"recommend", "Подбор рекомендаций фильмов"},
-        {"genres", "Настройка списка любимых жанров"},
-        {"history", "История оценок и активный алгоритм"},
-        {"bookmarks", "Список фильмов «Буду смотреть»"},
-        {"similar", "Поиск похожих фильмов во время просмотра"},
-        {"stats", "Аналитика и метрики работы бота"},
-        {"help", "Справка по возможностям бота"}
+    return {
+        makeBotCmd("start", "Запуск и выбор любимых жанров"),
+        makeBotCmd("recommend", "Подбор рекомендаций фильмов"),
+        makeBotCmd("search", "Поиск фильмов по названию"),
+        makeBotCmd("genres", "Настройка списка любимых жанров"),
+        makeBotCmd("history", "История оценок и активный алгоритм"),
+        makeBotCmd("bookmarks", "Список фильмов «Буду смотреть»"),
+        makeBotCmd("similar", "Поиск похожих фильмов во время просмотра"),
+        makeBotCmd("stats", "Аналитика и метрики работы бота"),
+        makeBotCmd("help", "Справка по возможностям бота")
     };
-    std::vector<TgBot::BotCommand::Ptr> commands;
-    for (const auto& [cmd, desc] : list) {
-        auto c = std::make_shared<TgBot::BotCommand>();
-        c->command = cmd;
-        c->description = desc;
-        commands.push_back(c);
-    }
-    return commands;
 }
 
 } // namespace

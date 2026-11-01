@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bot/InlineKeyboard.h"
+#include "core/Movie.h"
 
 #include <string>
 #include <vector>
@@ -55,6 +56,13 @@ public:
      * @return Объект InlineKeyboard.
      */
     static InlineKeyboard createRatingKeyboard();
+
+    /**
+     * @brief Создает клавиатуру с кнопками выбора найденных поиском фильмов.
+     * @param movies Список найденных фильмов.
+     * @return Объект InlineKeyboard.
+     */
+    static InlineKeyboard createSearchResultsKeyboard(const std::vector<core::Movie>& movies);
 
 private:
     static InlineButton createGenreButton(

@@ -178,11 +178,26 @@ void BrowsingRecommendationsState::handleCallback(
         handleRate(ctx, session, idRate);
     } else if (auto [matchedBkm, idBkm] = parseCallbackPayload(cb.data, "rec:bookmark"); matchedBkm) {
         handleBookmark(ctx, session, idBkm);
-    } else if (cb.data == "rec:menu") {
+    } else if (cb.data == "rec:menu" || cb.data == "menu:main") {
         ctx.transitionTo(session.userId, BotState::Idle);
+    } else if (cb.data.rfind("search:view:", 0) == 0) {
+        handleSearchViewCallback(ctx, session, cb.data);
     } else if (auto [matchedSim, idSim] = parseCallbackPayload(cb.data, "rec:similar"); matchedSim) {
         handleSimilarCallback(ctx, session, idSim);
     }
+}
+
+void BrowsingRecommendationsState::handleSearchViewCallback(
+    IDialogStateContext& ctx, UserSession& session, const std::string& data) {
+    int64_t movieId = 0;
+    try {
+        movieId = std::stoll(data.substr(std::string("search:view:").size()));
+    } catch (...) { return; }
+    auto movieOpt = ctx.getMovieById(movieId);
+    if (!movieOpt) return;
+    session.setCurrentMovie(movieOpt);
+    session.setLastActionNotice("🔍 Найденный фильм:");
+    formatAndSendCurrentCard(ctx, session);
 }
 
 void BrowsingRecommendationsState::handleNoMoreRecommendations(

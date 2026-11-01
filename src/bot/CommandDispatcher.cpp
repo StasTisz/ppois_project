@@ -1,4 +1,5 @@
 #include "bot/CommandDispatcher.h"
+#include "bot/BotConstants.h"
 #include "bot/KeyboardFactory.h"
 
 #include <algorithm>
@@ -30,6 +31,15 @@ std::string CommandDispatcher::extractCommand(const std::string& text) {
     return cmd;
 }
 
+std::string CommandDispatcher::extractArgument(const std::string& text) {
+    auto spacePos = text.find(' ');
+    if (spacePos == std::string::npos) return "";
+    auto start = text.find_first_not_of(" \t\r\n", spacePos);
+    if (start == std::string::npos) return "";
+    auto end = text.find_last_not_of(" \t\r\n");
+    return text.substr(start, end - start + 1);
+}
+
 bool CommandDispatcher::dispatch(const IncomingMessage& msg) {
     std::string cmd = extractCommand(msg.text);
     if (cmd.empty()) return false;
@@ -41,6 +51,7 @@ bool CommandDispatcher::dispatch(const IncomingMessage& msg) {
     else if (cmd == "/history") handleHistory(session);
     else if (cmd == "/bookmarks" || cmd == "/watchlist") handleBookmarks(session);
     else if (cmd == "/stats") handleStats(session);
+    else if (cmd == "/search") handleSearch(session, extractArgument(msg.text));
     else if (cmd == "/help") handleHelp(session);
     else if (cmd == "/menu") context_.transitionTo(session.userId, BotState::Idle);
     else return false;
@@ -146,10 +157,64 @@ void CommandDispatcher::handleStats(const UserSession& session) {
     messenger_->sendMessageWithKeyboard(session.chatId, report, KeyboardFactory::createMainMenuKeyboard());
 }
 
+static std::string formatSearchItem(size_t index, const core::Movie& movie) {
+    std::ostringstream oss;
+    oss << index << ". " << movie.title;
+    if (movie.year > 0) oss << " (" << movie.year << ")";
+    if (movie.ratingAvg > 0.0) oss << " [★ " << movie.ratingAvg << "/10]";
+    if (!movie.genres.empty()) {
+        oss << "\n   🎭 Жанры: ";
+        for (size_t g = 0; g < movie.genres.size(); ++g) {
+            oss << movie.genres[g] << (g + 1 < movie.genres.size() ? ", " : "");
+        }
+    }
+    if (!movie.director.empty()) oss << "\n   🎥 Режиссёр: " << movie.director;
+    if (!movie.trailerUrl.empty()) oss << "\n   🎬 Трейлер: " << movie.trailerUrl;
+    oss << "\n\n";
+    return oss.str();
+}
+
+std::string CommandDispatcher::formatSearchResultsText(
+    const std::string& query, const std::vector<core::Movie>& movies) {
+    if (movies.empty()) {
+        return "🔍 По запросу «" + query + "» ничего не найдено.\n"
+               "Попробуйте другое название или воспользуйтесь рекомендациями /recommend.";
+    }
+    std::ostringstream oss;
+    oss << "🔍 Результаты поиска по запросу «" << query << "»:\n\n";
+    for (size_t i = 0; i < movies.size(); ++i) {
+        oss << formatSearchItem(i + 1, movies[i]);
+    }
+    oss << "Нажмите кнопку ниже, чтобы открыть карточку фильма:";
+    return oss.str();
+}
+
+void CommandDispatcher::handleSearch(UserSession& session, const std::string& query) {
+    if (!messenger_) return;
+    if (query.empty()) {
+        messenger_->sendMessageWithKeyboard(
+            session.chatId,
+            "🔍 Чтобы найти фильм, укажите его название после команды:\n"
+            "/search <название>\n\n"
+            "Например:\n"
+            "• /search Начало\n"
+            "• /search Матрица\n"
+            "• /search Интерстеллар",
+            KeyboardFactory::createMainMenuKeyboard());
+        return;
+    }
+    auto results = context_.searchMovies(query, kDefaultSearchLimit);
+    std::string text = formatSearchResultsText(query, results);
+    auto kb = results.empty() ? KeyboardFactory::createMainMenuKeyboard()
+                              : KeyboardFactory::createSearchResultsKeyboard(results);
+    messenger_->sendMessageWithKeyboard(session.chatId, text, kb);
+}
+
 std::string CommandDispatcher::buildHelpText() {
     return "ℹ️ Справка по командам и возможностям бота:\n\n"
            "📋 Команды:\n"
            "• /start — Запуск онбординга | • /recommend — Подбор рекомендаций\n"
+           "• /search <название> — Поиск фильмов по названию\n"
            "• /genres — Настройка жанров | • /history — История оценок\n"
            "• /bookmarks (/watchlist) — Список «Буду смотреть»\n"
            "• /similar — Поиск похожих | • /stats — Аналитика | • /help — Справка\n\n"

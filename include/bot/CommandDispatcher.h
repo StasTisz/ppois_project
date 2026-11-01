@@ -35,6 +35,13 @@ public:
     [[nodiscard]] static std::string extractCommand(const std::string& text);
 
     /**
+     * @brief Извлекает аргументы команды после первого пробела, обрезая пробельные символы.
+     * @param text Текст входящего сообщения.
+     * @return Строка аргументов либо пустая строка.
+     */
+    [[nodiscard]] static std::string extractArgument(const std::string& text);
+
+    /**
      * @brief Маршрутизирует команду, если она является глобальной.
      * @param msg DTO входящего текстового сообщения.
      * @return true, если команда распознана и обработана, иначе false.
@@ -50,6 +57,15 @@ public:
     [[nodiscard]] static std::string formatBookmarksText(
         const UserSession& session, const IDialogStateContext& ctx);
 
+    /**
+     * @brief Форматирует текст результатов поиска фильмов.
+     * @param query Поисковый запрос.
+     * @param movies Список найденных фильмов.
+     * @return Отформатированная строка для отправки пользователю.
+     */
+    [[nodiscard]] static std::string formatSearchResultsText(
+        const std::string& query, const std::vector<core::Movie>& movies);
+
 private:
     void handleStart(UserSession& session);
     void handleRecommend(UserSession& session);
@@ -57,6 +73,7 @@ private:
     void handleHistory(const UserSession& session);
     void handleBookmarks(const UserSession& session);
     void handleStats(const UserSession& session);
+    void handleSearch(UserSession& session, const std::string& query);
     void handleHelp(const UserSession& session);
 
     [[nodiscard]] std::string formatHistoryText(const UserSession& session, const std::string& strategy) const;
