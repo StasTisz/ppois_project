@@ -98,7 +98,7 @@ InlineKeyboard KeyboardFactory::createSearchResultsKeyboard(const std::vector<co
         const auto& m = movies[i];
         std::string label = "🎬 " + std::to_string(i + 1) + ". " + m.title;
         if (label.size() > 40) {
-            label = label.substr(0, 37) + "...";
+            label.replace(37, std::string::npos, "...");
         }
         kb.rows.push_back({{label, "search:view:" + std::to_string(m.id), ""}});
     }
@@ -112,7 +112,7 @@ InlineKeyboard KeyboardFactory::createHistoryKeyboard(
     for (const auto& [movieId, label] : items) {
         std::string text = label;
         if (text.size() > 40) {
-            text = text.substr(0, 37) + "...";
+            text.replace(37, std::string::npos, "...");
         }
         kb.rows.push_back({{text, "hist:edit:" + std::to_string(movieId), ""}});
     }
