@@ -1,0 +1,123 @@
+#include "bot/KeyboardFactory.h"
+#include "bot/BotConstants.h"
+
+#include <algorithm>
+
+/**
+ * @file KeyboardFactory.cpp
+ * @brief Реализация методов фабрики интерфейса KeyboardFactory.
+ */
+
+namespace bot {
+
+const std::vector<std::string>& KeyboardFactory::getDefaultGenres() {
+    static const std::vector<std::string> genres = {
+        "Sci-Fi", "Action", "Drama", "Comedy",
+        "Thriller", "Animation", "Fantasy", "Horror"
+    };
+    return genres;
+}
+
+InlineKeyboard KeyboardFactory::createMainMenuKeyboard() {
+    return InlineKeyboard{{
+        {
+            {"🎬 Рекомендации", "menu:recommend"},
+            {"🎭 Жанры", "menu:genres"}
+        },
+        {
+            {"📜 История", "menu:history"},
+            {"🔖 Закладки", "menu:bookmarks"}
+        },
+        {
+            {"ℹ️ Помощь", "menu:help"}
+        }
+    }};
+}
+
+InlineButton KeyboardFactory::createGenreButton(
+    const std::string& genre, const std::vector<std::string>& selectedGenres) {
+    bool isSelected = std::find(selectedGenres.begin(), selectedGenres.end(), genre) != selectedGenres.end();
+    std::string text = isSelected ? ("✅ " + genre) : genre;
+    return InlineButton{std::move(text), "genre:toggle:" + genre, ""};
+}
+
+InlineKeyboard KeyboardFactory::createGenreSelectionKeyboard(
+    const std::vector<std::string>& selectedGenres,
+    const std::vector<std::string>& availableGenres) {
+    InlineKeyboard kb;
+    InlineKeyboardRow currentRow;
+
+    for (const auto& genre : availableGenres) {
+        currentRow.push_back(createGenreButton(genre, selectedGenres));
+        if (currentRow.size() == kGenresPerRow) {
+            kb.rows.push_back(std::move(currentRow));
+            currentRow.clear();
+        }
+    }
+    if (!currentRow.empty()) {
+        kb.rows.push_back(std::move(currentRow));
+    }
+    kb.rows.push_back({{"✔️ Готово", "genre:confirm", ""}});
+    return kb;
+}
+
+InlineKeyboard KeyboardFactory::createMovieReactionKeyboard(
+    int64_t movieId, const std::string& trailerUrl, bool isBookmarked) {
+    std::string suffix = (movieId > 0) ? (":" + std::to_string(movieId)) : "";
+    InlineKeyboard kb;
+    kb.rows.push_back({{"👍 Понравился", "rec:like" + suffix}, {"👎 Не понравился", "rec:dislike" + suffix}});
+    kb.rows.push_back({{"⏭ Следующий", "rec:next" + suffix}, {"⭐ Оценить (1-10)", "rec:rate" + suffix}});
+    kb.rows.push_back({{isBookmarked ? "✅ В закладках" : "🔖 Буду смотреть", "rec:bookmark" + suffix}});
+    if (!trailerUrl.empty()) {
+        kb.rows.push_back({{"🎬 Смотреть трейлер", "", trailerUrl}});
+    }
+    kb.rows.push_back({{"🏠 В меню", "rec:menu"}});
+    return kb;
+}
+
+InlineKeyboardRow KeyboardFactory::createRatingRow(int from, int to) {
+    InlineKeyboardRow row;
+    row.reserve(static_cast<size_t>(to - from + 1));
+    for (int i = from; i <= to; ++i) {
+        row.push_back({std::to_string(i), "rate:" + std::to_string(i), ""});
+    }
+    return row;
+}
+
+InlineKeyboard KeyboardFactory::createRatingKeyboard() {
+    InlineKeyboard kb;
+    kb.rows.push_back(createRatingRow(kMinRating, kRatingsPerRow));
+    kb.rows.push_back(createRatingRow(static_cast<int>(kRatingsPerRow) + 1, kMaxRating));
+    kb.rows.push_back({{"🔙 Отмена", "rate:cancel", ""}});
+    return kb;
+}
+
+InlineKeyboard KeyboardFactory::createSearchResultsKeyboard(const std::vector<core::Movie>& movies) {
+    InlineKeyboard kb;
+    for (size_t i = 0; i < movies.size(); ++i) {
+        const auto& m = movies[i];
+        std::string label = "🎬 " + std::to_string(i + 1) + ". " + m.title;
+        if (label.size() > 40) {
+            label.replace(37, std::string::npos, "...");
+        }
+        kb.rows.push_back({{label, "search:view:" + std::to_string(m.id), ""}});
+    }
+    kb.rows.push_back({{"🏠 Главное меню", "menu:main", ""}});
+    return kb;
+}
+
+InlineKeyboard KeyboardFactory::createHistoryKeyboard(
+    const std::vector<std::pair<int64_t, std::string>>& items) {
+    InlineKeyboard kb;
+    for (const auto& [movieId, label] : items) {
+        std::string text = label;
+        if (text.size() > 40) {
+            text.replace(37, std::string::npos, "...");
+        }
+        kb.rows.push_back({{text, "hist:edit:" + std::to_string(movieId), ""}});
+    }
+    kb.rows.push_back({{"🎬 Рекомендации", "menu:recommend", ""}, {"🏠 Главное меню", "menu:main", ""}});
+    return kb;
+}
+
+} // namespace bot

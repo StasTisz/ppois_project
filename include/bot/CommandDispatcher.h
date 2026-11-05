@@ -1,0 +1,104 @@
+#pragma once
+
+#include "bot/BotEvents.h"
+#include "bot/IBotMessenger.h"
+#include "bot/IDialogState.h"
+
+#include <memory>
+#include <string>
+
+/**
+ * @file CommandDispatcher.h
+ * @brief Диспетчер глобальных команд бота (/start, /recommend, /genres, /history, /help).
+ */
+
+namespace bot {
+
+/**
+ * @class CommandDispatcher
+ * @brief Обрабатывает глобальные команды пользователя независимо от текущего состояния FSM.
+ */
+class CommandDispatcher {
+public:
+    /**
+     * @brief Конструктор диспетчера команд.
+     * @param context Контекст конечного автомата диалогов.
+     * @param messenger Клиент отправки сообщений в Telegram.
+     */
+    CommandDispatcher(IDialogStateContext& context, std::shared_ptr<IBotMessenger> messenger);
+
+    /**
+     * @brief Извлекает команду из строки, отсекая аргументы и суффикс бота (@botname).
+     * @param text Текст входящего сообщения.
+     * @return Имя команды (начиная с '/'), либо пустая строка.
+     */
+    [[nodiscard]] static std::string extractCommand(const std::string& text);
+
+    /**
+     * @brief Извлекает аргументы команды после первого пробела, обрезая пробельные символы.
+     * @param text Текст входящего сообщения.
+     * @return Строка аргументов либо пустая строка.
+     */
+    [[nodiscard]] static std::string extractArgument(const std::string& text);
+
+    /**
+     * @brief Маршрутизирует команду, если она является глобальной.
+     * @param msg DTO входящего текстового сообщения.
+     * @return true, если команда распознана и обработана, иначе false.
+     */
+    bool dispatch(const IncomingMessage& msg);
+
+    /**
+     * @brief Форматирует список закладок («Буду смотреть») пользователя.
+     * @param session Сессия пользователя.
+     * @param ctx Контекст диалога.
+     * @return Строка с отформатированным списком фильмов или сообщением о пустом списке.
+     */
+    [[nodiscard]] static std::string formatBookmarksText(
+        const UserSession& session, const IDialogStateContext& ctx);
+
+    /**
+     * @brief Форматирует текст результатов поиска фильмов.
+     * @param query Поисковый запрос.
+     * @param movies Список найденных фильмов.
+     * @return Отформатированная строка для отправки пользователю.
+     */
+    [[nodiscard]] static std::string formatSearchResultsText(
+        const std::string& query, const std::vector<core::Movie>& movies);
+
+    /**
+     * @brief Форматирует текст истории оценок пользователя.
+     * @param session Сессия пользователя.
+     * @param strategy Название текущей активной стратегии рекомендаций.
+     * @param ctx Контекст диалога.
+     * @return Отформатированная строка истории оценок.
+     */
+    [[nodiscard]] static std::string formatHistoryText(
+        const UserSession& session, const std::string& strategy, const IDialogStateContext& ctx);
+
+    /**
+     * @brief Строит список элементов для inline-клавиатуры истории оценок.
+     * @param session Сессия пользователя.
+     * @param ctx Контекст диалога.
+     * @return Вектор пар (movieId, подпись кнопки).
+     */
+    [[nodiscard]] static std::vector<std::pair<int64_t, std::string>> buildHistoryButtonItems(
+        const UserSession& session, const IDialogStateContext& ctx);
+
+private:
+    void handleStart(UserSession& session);
+    void handleRecommend(UserSession& session);
+    void handleGenres(UserSession& session);
+    void handleHistory(const UserSession& session);
+    void handleBookmarks(const UserSession& session);
+    void handleStats(const UserSession& session);
+    void handleSearch(UserSession& session, const std::string& query);
+    void handleHelp(const UserSession& session);
+
+    [[nodiscard]] static std::string buildHelpText();
+
+    IDialogStateContext& context_;
+    std::shared_ptr<IBotMessenger> messenger_;
+};
+
+} // namespace bot

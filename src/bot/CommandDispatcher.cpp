@@ -1,0 +1,268 @@
+#include "bot/CommandDispatcher.h"
+#include "bot/BotConstants.h"
+#include "bot/KeyboardFactory.h"
+
+#include <algorithm>
+#include <sstream>
+#include <utility>
+
+/**
+ * @file CommandDispatcher.cpp
+ * @brief Реализация диспетчера команд CommandDispatcher.
+ */
+
+namespace bot {
+
+CommandDispatcher::CommandDispatcher(IDialogStateContext& context, std::shared_ptr<IBotMessenger> messenger)
+    : context_(context),
+      messenger_(std::move(messenger)) {
+}
+
+std::string CommandDispatcher::extractCommand(const std::string& text) {
+    if (text.empty() || text[0] != '/') {
+        return "";
+    }
+    auto spacePos = text.find(' ');
+    std::string cmd = (spacePos == std::string::npos) ? text : text.substr(0, spacePos);
+    auto atPos = cmd.find('@');
+    if (atPos != std::string::npos) {
+        cmd.resize(atPos);
+    }
+    return cmd;
+}
+
+std::string CommandDispatcher::extractArgument(const std::string& text) {
+    auto spacePos = text.find(' ');
+    if (spacePos == std::string::npos) return "";
+    auto start = text.find_first_not_of(" \t\r\n", spacePos);
+    if (start == std::string::npos) return "";
+    auto end = text.find_last_not_of(" \t\r\n");
+    return text.substr(start, end - start + 1);
+}
+
+bool CommandDispatcher::dispatch(const IncomingMessage& msg) {
+    std::string cmd = extractCommand(msg.text);
+    if (cmd.empty()) return false;
+
+    auto& session = context_.getSession(msg.userId, msg.chatId, msg.username);
+    if (cmd == "/start") handleStart(session);
+    else if (cmd == "/recommend") handleRecommend(session);
+    else if (cmd == "/genres") handleGenres(session);
+    else if (cmd == "/history") handleHistory(session);
+    else if (cmd == "/bookmarks" || cmd == "/watchlist") handleBookmarks(session);
+    else if (cmd == "/stats") handleStats(session);
+    else if (cmd == "/search") handleSearch(session, extractArgument(msg.text));
+    else if (cmd == "/help") handleHelp(session);
+    else if (cmd == "/menu") context_.transitionTo(session.userId, BotState::Idle);
+    else return false;
+    return true;
+}
+
+void CommandDispatcher::handleStart(UserSession& session) {
+    context_.transitionTo(session.userId, BotState::SelectingGenres);
+}
+
+void CommandDispatcher::handleRecommend(UserSession& session) {
+    if (!session.hasSelectedGenres()) {
+        if (messenger_) {
+            messenger_->sendMessage(
+                session.chatId,
+                "⚠️ Для подбора рекомендаций сначала выберите хотя бы один любимый жанр.");
+        }
+        context_.transitionTo(session.userId, BotState::SelectingGenres);
+        return;
+    }
+    context_.transitionTo(session.userId, BotState::BrowsingRecommendations);
+}
+
+void CommandDispatcher::handleGenres(UserSession& session) {
+    context_.transitionTo(session.userId, BotState::SelectingGenres);
+}
+
+static std::vector<std::pair<int64_t, int>> getSortedRatings(const UserSession& session) {
+    std::vector<std::pair<int64_t, int>> ratings(
+        session.getMovieRatings().begin(), session.getMovieRatings().end());
+    std::sort(ratings.begin(), ratings.end(), [](const auto& a, const auto& b) {
+        return a.first < b.first;
+    });
+    return ratings;
+}
+
+std::vector<std::pair<int64_t, std::string>> CommandDispatcher::buildHistoryButtonItems(
+    const UserSession& session, const IDialogStateContext& ctx) {
+    auto ratings = getSortedRatings(session);
+    std::vector<std::pair<int64_t, std::string>> items;
+    items.reserve(ratings.size());
+    for (size_t i = 0; i < ratings.size(); ++i) {
+        const auto& [movieId, score] = ratings[i];
+        auto movieOpt = ctx.getMovieById(movieId);
+        std::string title = movieOpt ? movieOpt->title : ("Фильм #" + std::to_string(movieId));
+        std::string label = "✏️ " + std::to_string(i + 1) + ". " + title + " (" + std::to_string(score) + "/10)";
+        items.emplace_back(movieId, std::move(label));
+    }
+    return items;
+}
+
+std::string CommandDispatcher::formatHistoryText(
+    const UserSession& session, const std::string& strategy, const IDialogStateContext& ctx) {
+    if (!session.hasRatings()) {
+        std::string text = "Ваша история просмотров и оценок пока пуста.";
+        return strategy.empty() ? text : (text + "\n🎯 Активный режим рекомендаций: " + strategy);
+    }
+    auto ratings = getSortedRatings(session);
+    std::ostringstream oss;
+    oss << "📜 Ваша история оценок:\n\n";
+    for (size_t i = 0; i < ratings.size(); ++i) {
+        const auto& [movieId, score] = ratings[i];
+        auto movieOpt = ctx.getMovieById(movieId);
+        std::string title = movieOpt ? movieOpt->title : ("Фильм #" + std::to_string(movieId));
+        oss << (i + 1) << ". " << title << " — " << score << "/10\n";
+    }
+    if (!strategy.empty()) oss << "\n🎯 Активный режим рекомендаций: " << strategy << "\n";
+    oss << "\nНажмите кнопку ниже, чтобы изменить оценку фильма:";
+    return oss.str();
+}
+
+void CommandDispatcher::handleHistory(const UserSession& session) {
+    if (!messenger_) return;
+    std::string strategy = context_.getActiveStrategyName(session.userId);
+    std::string text = formatHistoryText(session, strategy, context_);
+    if (!session.hasRatings()) {
+        messenger_->sendMessageWithKeyboard(session.chatId, text, KeyboardFactory::createMainMenuKeyboard());
+        return;
+    }
+    auto buttonItems = buildHistoryButtonItems(session, context_);
+    messenger_->sendMessageWithKeyboard(
+        session.chatId, text, KeyboardFactory::createHistoryKeyboard(buttonItems));
+}
+
+static std::string formatSingleBookmark(size_t index, const core::Movie& movie) {
+    std::ostringstream oss;
+    oss << index << ". " << movie.title;
+    if (movie.year > 0) oss << " (" << movie.year << ")";
+    if (movie.ratingAvg > 0.0) oss << " [★ " << movie.ratingAvg << "/10]";
+    if (!movie.genres.empty()) {
+        oss << "\n   🎭 Жанры: ";
+        for (size_t g = 0; g < movie.genres.size(); ++g) {
+            oss << movie.genres[g] << (g + 1 < movie.genres.size() ? ", " : "");
+        }
+    }
+    if (!movie.trailerUrl.empty()) {
+        oss << "\n   🎬 Трейлер: " << movie.trailerUrl;
+    }
+    oss << "\n\n";
+    return oss.str();
+}
+
+std::string CommandDispatcher::formatBookmarksText(const UserSession& session, const IDialogStateContext& ctx) {
+    auto bookmarked = session.getBookmarkedMovieIds();
+    if (bookmarked.empty()) {
+        return "🔖 Ваш список закладок «Буду смотреть» пока пуст.\n"
+               "Вы можете добавить фильм в закладки кнопкой «🔖 Буду смотреть» на карточке фильма.";
+    }
+    std::sort(bookmarked.begin(), bookmarked.end());
+    std::ostringstream oss;
+    oss << "🔖 Ваш список закладок «Буду смотреть»:\n\n";
+    size_t index = 1;
+    for (int64_t movieId : bookmarked) {
+        auto movieOpt = ctx.getMovieById(movieId);
+        if (movieOpt) oss << formatSingleBookmark(index++, *movieOpt);
+        else oss << index++ << ". Фильм #" << movieId << "\n\n";
+    }
+    oss << "Используйте меню ниже для дальнейших действий:";
+    return oss.str();
+}
+
+void CommandDispatcher::handleBookmarks(const UserSession& session) {
+    if (!messenger_) return;
+    std::string text = formatBookmarksText(session, context_);
+    messenger_->sendMessageWithKeyboard(session.chatId, text, KeyboardFactory::createMainMenuKeyboard());
+}
+
+void CommandDispatcher::handleStats(const UserSession& session) {
+    if (!messenger_) return;
+    std::string report = context_.getMetricsReport();
+    if (report.empty()) report = "📊 Метрики пока не собраны (коллектор не инициализирован).";
+    report += "\n\nИспользуйте меню ниже для дальнейших действий:";
+    messenger_->sendMessageWithKeyboard(session.chatId, report, KeyboardFactory::createMainMenuKeyboard());
+}
+
+static std::string formatSearchItem(size_t index, const core::Movie& movie) {
+    std::ostringstream oss;
+    oss << index << ". " << movie.title;
+    if (movie.year > 0) oss << " (" << movie.year << ")";
+    if (movie.ratingAvg > 0.0) oss << " [★ " << movie.ratingAvg << "/10]";
+    if (!movie.genres.empty()) {
+        oss << "\n   🎭 Жанры: ";
+        for (size_t g = 0; g < movie.genres.size(); ++g) {
+            oss << movie.genres[g] << (g + 1 < movie.genres.size() ? ", " : "");
+        }
+    }
+    if (!movie.director.empty()) oss << "\n   🎥 Режиссёр: " << movie.director;
+    if (!movie.trailerUrl.empty()) oss << "\n   🎬 Трейлер: " << movie.trailerUrl;
+    oss << "\n\n";
+    return oss.str();
+}
+
+std::string CommandDispatcher::formatSearchResultsText(
+    const std::string& query, const std::vector<core::Movie>& movies) {
+    if (movies.empty()) {
+        return "🔍 По запросу «" + query + "» ничего не найдено.\n"
+               "Попробуйте другое название или воспользуйтесь рекомендациями /recommend.";
+    }
+    std::ostringstream oss;
+    oss << "🔍 Результаты поиска по запросу «" << query << "»:\n\n";
+    for (size_t i = 0; i < movies.size(); ++i) {
+        oss << formatSearchItem(i + 1, movies[i]);
+    }
+    oss << "Нажмите кнопку ниже, чтобы открыть карточку фильма:";
+    return oss.str();
+}
+
+void CommandDispatcher::handleSearch(UserSession& session, const std::string& query) {
+    if (!messenger_) return;
+    if (query.empty()) {
+        messenger_->sendMessageWithKeyboard(
+            session.chatId,
+            "🔍 Чтобы найти фильм, укажите его название после команды:\n"
+            "/search <название>\n\n"
+            "Например:\n"
+            "• /search Начало\n"
+            "• /search Матрица\n"
+            "• /search Интерстеллар",
+            KeyboardFactory::createMainMenuKeyboard());
+        return;
+    }
+    auto results = context_.searchMovies(query, kDefaultSearchLimit);
+    std::string text = formatSearchResultsText(query, results);
+    auto kb = results.empty() ? KeyboardFactory::createMainMenuKeyboard()
+                              : KeyboardFactory::createSearchResultsKeyboard(results);
+    messenger_->sendMessageWithKeyboard(session.chatId, text, kb);
+}
+
+std::string CommandDispatcher::buildHelpText() {
+    return "ℹ️ Справка по командам и возможностям бота:\n\n"
+           "📋 Команды:\n"
+           "• /start — Запуск онбординга | • /recommend — Подбор рекомендаций\n"
+           "• /search <название> — Поиск фильмов по названию\n"
+           "• /genres — Настройка жанров | • /history — История оценок\n"
+           "• /bookmarks (/watchlist) — Список «Буду смотреть»\n"
+           "• /similar — Поиск похожих | • /stats — Аналитика | • /help — Справка\n\n"
+           "🎬 Кнопки под карточкой фильма:\n"
+           "• 👍 Понравился (10/10) | • 👎 Не понравился (1/10)\n"
+           "• 🔖 Буду смотреть | • ⭐ Оценить (1-10)\n"
+           "• ⏭ Следующий | • 🔍 Похожие\n\n"
+           "🧠 Стратегии рекомендаций:\n"
+           "1. Cold-Start / Popularity — топовые фильмы каталога в выбранных жанрах.\n"
+           "2. Content-Based Filtering — подбор по сходству жанров, режиссера и эпохи.\n\n"
+           "Используйте кнопки меню ниже для быстрой навигации:";
+}
+
+void CommandDispatcher::handleHelp(const UserSession& session) {
+    if (!messenger_) {
+        return;
+    }
+    messenger_->sendMessageWithKeyboard(session.chatId, buildHelpText(), KeyboardFactory::createMainMenuKeyboard());
+}
+
+} // namespace bot
