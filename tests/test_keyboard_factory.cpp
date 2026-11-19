@@ -43,6 +43,39 @@ public:
     std::vector<MessageRecord> messages;
 };
 
+bool isValidUtf8String(const std::string& str) {
+    size_t i = 0;
+    while (i < str.size()) {
+        auto c = static_cast<unsigned char>(str[i]);
+        if (c <= 0x7F) {
+            ++i;
+        } else if ((c & 0xE0) == 0xC0) {
+            if (i + 1 >= str.size() || (static_cast<unsigned char>(str[i + 1]) & 0xC0) != 0x80) {
+                return false;
+            }
+            i += 2;
+        } else if ((c & 0xF0) == 0xE0) {
+            if (i + 2 >= str.size() ||
+                (static_cast<unsigned char>(str[i + 1]) & 0xC0) != 0x80 ||
+                (static_cast<unsigned char>(str[i + 2]) & 0xC0) != 0x80) {
+                return false;
+            }
+            i += 3;
+        } else if ((c & 0xF8) == 0xF0) {
+            if (i + 3 >= str.size() ||
+                (static_cast<unsigned char>(str[i + 1]) & 0xC0) != 0x80 ||
+                (static_cast<unsigned char>(str[i + 2]) & 0xC0) != 0x80 ||
+                (static_cast<unsigned char>(str[i + 3]) & 0xC0) != 0x80) {
+                return false;
+            }
+            i += 4;
+        } else {
+            return false;
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 /**
@@ -241,5 +274,39 @@ TEST(KeyboardFactoryTest, MovieReactionKeyboardBookmarkToggleLabels) {
     ASSERT_NE(btn2, nullptr);
     EXPECT_EQ(btn2->text, "✅ В закладках");
 }
+
+/**
+ * @test Проверяет корректное UTF-8 усечение длинных русских названий в createSearchResultsKeyboard.
+ */
+TEST(KeyboardFactoryTest, SearchResultsKeyboardTruncatesUtf8Safely) {
+    core::Movie longTitleMovie;
+    longTitleMovie.id = 101;
+    longTitleMovie.title = "Побег из Шоушенка: Расширенная версия";
+    
+    auto kb = bot::KeyboardFactory::createSearchResultsKeyboard({longTitleMovie});
+    ASSERT_GE(kb.rows.size(), 2u);
+    ASSERT_FALSE(kb.rows[0].empty());
+    
+    const std::string& label = kb.rows[0][0].text;
+    EXPECT_LE(label.size(), 40u);
+    EXPECT_TRUE(isValidUtf8String(label));
+    EXPECT_NE(label.find("..."), std::string::npos);
+}
+
+/**
+ * @test Проверяет корректное UTF-8 усечение длинных русских названий в createHistoryKeyboard.
+ */
+TEST(KeyboardFactoryTest, HistoryKeyboardTruncatesUtf8Safely) {
+    std::string longItem = "✏️ 1. Властелин колец: Братство Кольца (10/10)";
+    auto kb = bot::KeyboardFactory::createHistoryKeyboard({{55, longItem}});
+    ASSERT_GE(kb.rows.size(), 2u);
+    ASSERT_FALSE(kb.rows[0].empty());
+    
+    const std::string& label = kb.rows[0][0].text;
+    EXPECT_LE(label.size(), 40u);
+    EXPECT_TRUE(isValidUtf8String(label));
+    EXPECT_NE(label.find("..."), std::string::npos);
+}
+
 
 

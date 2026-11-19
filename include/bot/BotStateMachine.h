@@ -1,5 +1,6 @@
-#include "analytics/MetricsCollector.h"
 #pragma once
+
+#include "analytics/MetricsCollector.h"
 
 #include "bot/BotEvents.h"
 #include "bot/BotEventRouter.h"

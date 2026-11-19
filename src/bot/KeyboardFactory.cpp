@@ -1,5 +1,6 @@
 #include "bot/KeyboardFactory.h"
 #include "bot/BotConstants.h"
+#include "bot/MovieCardFormatter.h"
 
 #include <algorithm>
 
@@ -98,7 +99,7 @@ InlineKeyboard KeyboardFactory::createSearchResultsKeyboard(const std::vector<co
         const auto& m = movies[i];
         std::string label = "🎬 " + std::to_string(i + 1) + ". " + m.title;
         if (label.size() > 40) {
-            label.replace(37, std::string::npos, "...");
+            label = MovieCardFormatter::truncateUtf8Safe(label, 40);
         }
         kb.rows.push_back({{label, "search:view:" + std::to_string(m.id), ""}});
     }
@@ -112,7 +113,7 @@ InlineKeyboard KeyboardFactory::createHistoryKeyboard(
     for (const auto& [movieId, label] : items) {
         std::string text = label;
         if (text.size() > 40) {
-            text.replace(37, std::string::npos, "...");
+            text = MovieCardFormatter::truncateUtf8Safe(text, 40);
         }
         kb.rows.push_back({{text, "hist:edit:" + std::to_string(movieId), ""}});
     }
